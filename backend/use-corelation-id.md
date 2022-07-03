@@ -57,9 +57,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+
 	"net/http"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/segmentio/ksuid"
 )
 
@@ -95,15 +97,13 @@ func main() {
 
 	ctx := context.Background()
 	ctx = RequestID.WithValue(ctx, requestID)
-
+	log := newLogger(ctx)
 	if err := createUser(ctx, ""); err != nil {
-		err = fmt.Errorf("%w: failed to create user: request_id=%s", err, RequestID.MustValue(ctx))
-		log.Println(err)
+		log.Error().Err(err).Msg("failed to create user")
 	}
 
 	if err := createUser(ctx, "john"); err != nil {
-		err = fmt.Errorf("%w: failed to create user: request_id=%s", err, RequestID.MustValue(ctx))
-		log.Println(err)
+		log.Error().Err(err).Msg("failed to create user")
 	}
 }
 
@@ -112,8 +112,22 @@ func createUser(ctx context.Context, name string) error {
 		return errors.New("name is required")
 	}
 
-	log.Printf("creating user: name=%s, request_id=%s\n", name, RequestID.MustValue(ctx))
+	log := newLogger(ctx)
+	log.Info().Str("name", name).Msg("creating user")
 
 	return nil
 }
+
+func newLogger(ctx context.Context) zerolog.Logger {
+	return log.With().Str("request_id", RequestID.MustValue(ctx)).Logger()
+}
+```
+
+
+Output:
+
+```go
+requestID: ZJkWuUrRVAHjLtxQPl1jlBz8FXd
+{"level":"error","request_id":"ZJkWuUrRVAHjLtxQPl1jlBz8FXd","error":"name is required","time":"2009-11-10T23:00:00Z","message":"failed to create user"}
+{"level":"info","request_id":"ZJkWuUrRVAHjLtxQPl1jlBz8FXd","name":"john","time":"2009-11-10T23:00:00Z","message":"creating user"}
 ```
