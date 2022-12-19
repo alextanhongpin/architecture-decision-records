@@ -11,7 +11,7 @@ Graceful shutdown ensures existing processes are terminated before the server is
 
 ## Why
 
-Without graceful shutdown, the program is terminated immediately, leading to partial failures and potentially data loss. 
+Without graceful shutdown, the program is terminated immediately, leading to partial failures and potentially data loss.
 
 For example, your server may be configured to receive a webhook. When the webhook is received, the request will be stored in the database. However, due to sudden termination, the program exits before the database saves the request.
 
@@ -58,6 +58,11 @@ func New(handler http.Handler, port int) {
 		ReadHeaderTimeout: readTimeout,
 		ReadTimeout:       readTimeout,
 		Handler:           handler,
+		BaseContext: func(_ net.Listener) context.Context {
+			// https://www.rudderstack.com/blog/implementing-graceful-shutdown-in-go/
+			// Pass the main ctx as the context for every request.
+			return ctx
+		},
 	}
 
 	// Initializing the srv in a goroutine so that
@@ -84,5 +89,24 @@ func New(handler http.Handler, port int) {
 	} else {
 		log.Info().Msg("exiting")
 	}
+}
+```
+
+Example of graceful shutdown
+
+```go
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		select {
+		case <-ctx.Done():
+			fmt.Println("http graceful shutdown")
+			w.WriteHeader(http.StatusOK)
+		case <-time.After(2 * time.Second):
+			fmt.Fprint(w, "hello world")
+		}
+	})
+	server.New(mux, 8080)
 }
 ```
