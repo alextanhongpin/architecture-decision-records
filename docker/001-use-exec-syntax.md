@@ -26,3 +26,8 @@ CONTAINER ID   IMAGE                      COMMAND                  CREATED      
 
 
 This is especially important for _graceful termination_ of the server. If the shell form is used, the app will not receive the correct termination signal.
+
+
+
+
+[^1]: https://engineering.pipefy.com/2021/07/30/1-docker-bits-shell-vs-exec/#:~:text=The%20SHELL%20form%20runs%20the,process%20(on%20a%20shell).&text=The%20EXEC%20form%20runs%20the,one%20that%20has%20PID%201).
