@@ -9,11 +9,10 @@ function isChatType(t: string): t is ChatType {
     return CHAT_TYPES.includes(t as ChatType)
 }
 
-function parseChatType(t: string): ChatType {
-    if (isChatType(t)) {
-        return t as ChatType
+function assertIsChatType(t: string): asserts t is ChatType {
+    if (!isChatType(t)) {
+        throw new TypeError(`ChatType: invalid value "${t}"`)    
     }
-    throw new TypeError(`ChatType: invalid value "${t}"`)
 }
 
 function print(t: ChatType) {
@@ -21,8 +20,9 @@ function print(t: ChatType) {
 }
 
 const data = {
-    type: 'test'
+    type: 'private'
 }
 
-print(parseChatType(data.type))
+assertIsChatType(data.type)
+print(data.type)
 ```
