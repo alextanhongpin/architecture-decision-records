@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -44,7 +45,11 @@ const (
 func New(handler http.Handler, port int) {
 	log := log.With().Str("pkg", "server").Logger()
 
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	// SIGINT: When a process is interrupted from keyboard by pressing CTRL+C. 
+	//         Use os.Interrupt instead for OS-agnostic interrupt.
+	//         Reference: https://github.com/edgexfoundry/edgex-go/issues/995
+	// SIGTERM: A process is killed. Kubernetes sends this when performing a rolling update.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// Instead of setting WriteTimeout, we use http.TimeoutHandler to specify the
