@@ -31,7 +31,18 @@ printEmail('john.appleseed@mail.com') // Invalid
 printEmail('john.appleseed@mail.com' as Email) // Valid
 ```
 
+## Assertion function
+
+```typescript
+function assertIsDefined<T>(value: T): asserts value is NonNullable<T> {
+  if (value === undefined || value === null) {
+    throw new Error(`${value} is not defined`)
+  }
+}
+```
+
 ## External input
+
 
 When receiving an external request, we do not know if the type is valid. We can use `asssertion function` that will throw if the type is not valid.
 
