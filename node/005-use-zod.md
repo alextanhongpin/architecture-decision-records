@@ -52,3 +52,26 @@ export const EmailSchema = z.custom<Email>((val) =>
     .parse(val)
 );
 ```
+
+## Objects
+
+Basically, we create a schema using zod first, then we infer the type.
+
+Reference [here](https://github.com/colinhacks/zod#objects):
+```ts
+// all properties are required by default
+const Dog = z.object({
+  name: z.string(),
+  age: z.number(),
+});
+
+// extract the inferred type like this
+type Dog = z.infer<typeof Dog>;
+
+// equivalent to:
+type Dog = {
+  name: string;
+  age: number;
+};
+```
+
