@@ -15,3 +15,5 @@ This ADR will also address the following questions
 - committing and rollback
 - running nested transactions
 - rollbacking transactions in tests
+- Query and Exec transaction
+
