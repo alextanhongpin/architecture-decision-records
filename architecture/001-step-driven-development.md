@@ -37,7 +37,19 @@ Within the layer, there is not much guidance on how to further break it down int
 
 ## Step driven development
 
-So how toS
+So how to divide and conquer our ever-growing usecase layer?
+
+Simple, we break them into steps. 
+
+Abstractions are important too. The usecase layer has always been the dumping ground for all kinds of logic without abstraction. 
+
+## Code as Document
+ One of the advantage of step driven development is that now it can read as a pseudo code. We can even add tools to log each steps as a snapshot together with the request response and also generate sequence diagram with it.
+ 
+ 
+ 
+
+## 
 
 It is hard to deal with changing requirements too, especially when you need to touch unrelated code in different layers. Hence, we want to introduce the concept of step-driven-development.
 
@@ -90,4 +102,17 @@ func (uc *AuthUsecase) Login(ctx context.Context) error {
 }
 ```
 
+
+
+
 One advantage is we abstracted the steps so that we don't need to concern ourselves with implementation details. During testing, we can also test each steps independently.
+
+
+
+Examples
+- reusability of each steps
+- testing each step independently 
+- bringing steps together
+- logging steps
+- swapping steps 
+- alternative flows
