@@ -116,3 +116,17 @@ Examples
 - logging steps
 - swapping steps 
 - alternative flows
+
+## Testing
+
+Testing steps/layers can be challenging. 
+
+We want to be able to test them independently, yet assert that they can chain together to run end to end.
+
+One strategy is to use snapshots.
+
+For example, your usecase may be composed of several long steps. This can be logically decomposed into say two clear steps boundary. We can test each step boundary, and snapshot the previous step boundary to pass to the next step boundary.
+
+This form of delegation ensures that both steps are _continuous_.
+
+One side effect is that they may be creating a dependency. 
