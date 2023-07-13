@@ -1,0 +1,3 @@
+# Migration
+
+Use dbmate.
