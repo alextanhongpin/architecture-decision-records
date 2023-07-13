@@ -8,6 +8,7 @@ Clean architecture promotes a clean separation of layers, but they are split bas
 Things have changed, and the way we develop is geared towards delivering features. Every addition or change to a feature will involve code changes across different layers, aka vertical slicing.
 
 ## Layers
+
 These layers tend to form a _gradient_, where some responsibility may overlap too.
 Layers are rarely independent as one would think. In clean architecture for example, each layer will depend on the layers below it. For example, in golang, if we have a usecase package that calls the repository package, one would think they could be clearly substituted by just declaring the interface at the usecase layer. However, there will be some types that might need to be imported from the repository layer, hence coupling them together.
 
@@ -130,3 +131,41 @@ For example, your usecase may be composed of several long steps. This can be log
 This form of delegation ensures that both steps are _continuous_.
 
 One side effect is that they may be creating a dependency. 
+
+## Mocking
+
+Why do we need mocking? the reason is simple, we do not want to execute the side effects (e.g database queries) or want to avoid making API calls. 
+
+Most people mock the response in order to test control flow. This is wrong, and doesn't add much value. It also couples two steps that otherwise could have been tested independently.
+
+To elaborate further, take the example of the step 
+
+1. create account(email): Account
+2. send welcome email(Account): error
+
+If we mock the first step, we are essentially 
+
+- discarding the validation for the create account request
+- mocking the response for the response Account
+- coupling the response with the step send welcome email (which could have different behavior depending on the account returned)
+
+For the last point, we could have just tested the send welcome email step independently. 
+
+## Data pipelines
+
+Basically, we want to treat each step as a black box, where only the input and output matters, and can be pipe to the next step.
+
+This is similar to how unix works.
+
+Basically every step we execute is just a series of data transformation. What is important is validating the request and response for each step.
+
+## Clean Usecase
+
+Most usecase suffers because they have inlined logic. A basic example is calculation.
+
+```
+orders = repo.GetOrder()
+total = do some order calculation 
+```
+
+The problem with this is, we now have to execute the whole usecase in order to test this calculation 
