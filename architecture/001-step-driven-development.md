@@ -151,6 +151,8 @@ If we mock the first step, we are essentially
 
 For the last point, we could have just tested the send welcome email step independently. 
 
+In short, if all the steps are mockable, and there are no inlined steps, there is no value in mocking the steps for testing.
+
 ## Data pipelines
 
 Basically, we want to treat each step as a black box, where only the input and output matters, and can be pipe to the next step.
@@ -168,4 +170,20 @@ orders = repo.GetOrder()
 total = do some order calculation 
 ```
 
-The problem with this is, we now have to execute the whole usecase in order to test this calculation 
+The problem with this is, we now have to execute the whole usecase in order to test this calculation.
+
+In short, don't in-line logic. That includes separating them into a method or a function call. Instead, shift the logic into a step and test the step separately.
+
+
+## Substeps
+
+Once we have extracted all the steps from the usecase, we can focus on each step individually.
+
+Within each step, we can also have more steps to execute.
+
+They are usually 
+- constructing a new request
+- mapping request
+- business logic
+- side effects
+
