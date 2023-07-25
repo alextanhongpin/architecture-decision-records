@@ -42,7 +42,6 @@ func IsValidTransition(prev, next Status) bool {
 }
 ```
 
-
 We can then implement it this way:
 
 ```golang
@@ -81,6 +80,10 @@ func (o *Order) Complete() error {
 	return nil
 }
 ```
+
+Above we see the implementation of a local state. 
+
+However, most of the time, we don't run a single server. The state can be distributed.
 
 One use of state machine when working in distributed system is to guard against non-linear path. 
 
@@ -130,6 +133,34 @@ func (d *OrderFlowDecider) CanCreate() {
 ```
 
 For most cases, you might not care about the intermediate flow, or perhaps the flow can be treated as a single step. In that case, it is sufficient to just check if the identifier exists.
+
+### Data representation
+
+We can represent states as follow
+
+```
+pending, success, failed
+```
+
+For asynchronous flow, we may not be able to mark the step as success or not, so we need another boolean:
+
+```
+not started, pending, success, failed
+```
+
+For idempotent operation, it can just be
+
+```
+happened, not happened
+```
+
+Perhaps we have a SLA for retries and/or expiration
+
+```
+remaining
+limit
+retriesIn
+```
 
 ## Consequences
 
