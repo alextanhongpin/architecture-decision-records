@@ -162,6 +162,21 @@ limit
 retriesIn
 ```
 
+If a step failed, we may also want to record the reason and mark the step as retryable, or permanently failed:
+
+```
+err
+canRetry
+terminated
+```
+
+We can provide manual cancellation if we no longer want to run the step. The state machine can check if the flow is failed.
+
+
+Another possibility is reversal. After successful flow, we may still want to reverse the state.
+
+This is commonly known as saga.
+
 ## Consequences
 
 - a standardised approach on dealing with idempotency and state transitions
