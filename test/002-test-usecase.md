@@ -1,5 +1,10 @@
 # Test Usecase
 
+## Status
+
+`draft`
+
+## Context
 
 There are several kinds of testing
 - unit: test stateless components, such as methods for a library
@@ -25,3 +30,32 @@ In short, we don't really want to concern ourselves with tesing the system inter
 
 
 TODO: Add example.
+
+
+## Decision
+
+### Don't cover all paths
+
+we should not cover all paths. If our usecase consists of multiple steps, the common pattern is usually to test every step with success/failure scenario. However, doing this for all steps while repeating the previous steps will usually lead to complexity of O^n.
+
+
+### Don't mock error paths from dependencies 
+
+There is not much value derived from mocking the failure paths, especially those from dependencies.
+instead we should just focus on the happy paths.
+
+unhappy paths are usually domain behaviour, so they could be tested separately.
+
+### Put branching logic in steps
+
+So that we don't have to repeat tests.
+
+### Step driven development
+
+### Mock dependencies one layer under
+
+Dont overmock, use actual dependencies.
+
+## Consequences 
+
+
