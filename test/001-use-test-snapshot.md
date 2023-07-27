@@ -11,6 +11,7 @@ Goal
 - rely on PR reviews to get feedback and catch inconsistency
 - git-friendly test output. Diffable and part of the commit.
 
+
 For most tests, the step is usually as follow
 - write a test
 - assert the values match the expected
@@ -21,6 +22,17 @@ However, we can just simplify it by snapshotting the result, and compared it wit
 - avoid testing fields individually
 - don't need to manually add new fields
 - don't need to assert dynamic values such as date/random number/uuid
+
+Additional functionalities may include intercepting and inspecting.
+
+Intercepting can be used to perform the following:
+
+
+- masking fields before dumping them (for security purposes)
+- ignoring fields from comparison
+- modifying data
+
+Inspecting on the other hand allow custom validation, that the default diff doesn't handle.
 
 ## Decision
 
