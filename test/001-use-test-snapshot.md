@@ -69,5 +69,16 @@ Dumping out data provides greater visibility on the data transformation that is 
 
 Since most dependencies will be mocked, it is easy to decorate those dependencies with snapshotting capabilities.
 
+### Patterns
+
+- input output (request response, before after) mapper, constructor, marshalunmarshal
+- http
+- graphql
+- grpc
+- sql
+- message queue
+- redis
+- events
+
 
 ## Consequences 
