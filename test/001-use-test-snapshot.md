@@ -1,23 +1,30 @@
 # Use Test Snapshot
 
+## Status
+
+`draft`
+
+## Context
 Goal
 - visibility in data structure transformation (e.g. SQL, data, json)
-- reduce need to write self-assertions
+- reduce need to write self-assertions. For objects with complex structure, nested objects and large number of fields, we do not one to write assertions for each of them.
+- rely on PR reviews to get feedback and catch inconsistency
+- git-friendly test output. Diffable and part of the commit.
 
 For most tests, the step is usually as follow
 - write a test
 - assert the values match the expected
 
 
-However, we can just simplify it by snapshotting the result, and compared it with the previous result. ̛If the existing snapshot does not exists, it will first create the snapshot.
-
+However, we can just simplify it by snapshotting the result, and compared it with the previous result. If the existing snapshot does not exists, it will first create the snapshot.
 
 - avoid testing fields individually
 - don't need to manually add new fields
 - don't need to assert dynamic values such as date/random number/uuid
 
+## Decision
 
-## Implementation
+### Implementation
 
 We need to create two methods
 - `dump(subject, path)`
