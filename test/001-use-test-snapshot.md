@@ -34,6 +34,10 @@ Intercepting can be used to perform the following:
 
 Inspecting on the other hand allow custom validation, that the default diff doesn't handle.
 
+Additionally, once we have the snapshot, we can load it to be used for other tests. For example, instead of rewriting fixtures, we can just dump the state and load it in another tests for replay. 
+
+This adds several benefits by coupling the results to a shared snapshot. When it changes, your tests should warn you about the changes.
+
 ## Decision
 
 ### Implementation
@@ -65,3 +69,5 @@ Dumping out data provides greater visibility on the data transformation that is 
 
 Since most dependencies will be mocked, it is easy to decorate those dependencies with snapshotting capabilities.
 
+
+## Consequences 
