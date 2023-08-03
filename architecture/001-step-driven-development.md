@@ -56,7 +56,27 @@ Pure functions steps can be used directly, assuming that we have control over th
 
 For steps with dependencies, we can inject it after building it. Usually it is preferable to pass an interface too since we don't really care about the implementation.
 
-## 
+### Composition
+
+Steps can be composed, similar to how pipe in linux works.
+
+A step can have smaller substeps, but the idea is the same.
+
+At the highest level, we have a step with an input and output, which can be optional.
+
+As long as the output of a step matches the input of the previous step, we can chain them.
+
+The ideal scenario is that there are no dependencies between steps, and the order of execution does not matter.
+
+
+
+### Steps from user story/usecase
+
+Can we derive steps from the user story and/or usecase. Partially. It would be more accurate to derive it from the system flow, which is also explained in one of the ADR.
+
+
+
+## Decisions
 
 It is hard to deal with changing requirements too, especially when you need to touch unrelated code in different layers. Hence, we want to introduce the concept of step-driven-development.
 
