@@ -48,7 +48,13 @@ Abstractions are important too. The usecase layer has always been the dumping gr
  One of the advantage of step driven development is that now it can read as a pseudo code. We can even add tools to log each steps as a snapshot together with the request response and also generate sequence diagram with it.
  
  
- 
+## Functional Steps
+
+Pure functions steps can be used directly, assuming that we have control over the input of the previous steps.
+
+## Steps with dependencies
+
+For steps with dependencies, we can inject it after building it. Usually it is preferable to pass an interface too since we don't really care about the implementation.
 
 ## 
 
