@@ -36,7 +36,13 @@ Take an order created notification by example. We pass a payload that contains t
 
 For most cases, it is also better for the consumer to decide when to call the API to fetch the latest data from the publisher, instead of relying on the stale data that was sent.
 
+### CQRS
+
+### Event Sourcing
+
 ### Cloudevents
+
+
 
 ### Consumer vs background tasks
 
