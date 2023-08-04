@@ -21,3 +21,23 @@
   - CI/CD
   - secrets and configurations
   - cost tracking
+
+
+## Templates
+
+Use templates to organize information. Ideally they should be consistent to make it easy to digest information.
+
+- ADR
+- decision templates
+- user story
+- use cases
+- daily stand up
+- PR template
+- git commit
+- semantic commit
+- changelog
+
+## Diagramming
+
+- mermaid for sequence diagram
+- C4
