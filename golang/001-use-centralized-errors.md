@@ -1,4 +1,13 @@
 # Use Centralized Errors
 
 
-[errors](https://github.com/alextanhongpin/errors).
+
+## Status
+
+`deprecated`. See [018-errors-management.md](./018-errors-management.md). Each package or layer should have its own error.
+
+
+## Context
+
+
+We want to centalize error handling by placing them in a single package, e.g. `errors`. This simplifies import path, because all errors can be traced from a simple package.

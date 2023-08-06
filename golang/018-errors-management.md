@@ -9,6 +9,8 @@
 
 Outlines the best practices in error management for golang.
 
+[errors](https://github.com/alextanhongpin/errors).
+
 ## Decision
 
 ### Grouping errors
@@ -32,12 +34,12 @@ Becareful of sharing states.
 
 ### Error reporting
 
-### Logging 
+### Logging
 
 ### Translating errors between layers
 
 ### Mutability
-Errors should be immutable after the state has been declared. 
+Errors should be immutable after the state has been declared.
 Sentinel errors are always immutable.
 
 ### Wrapping
