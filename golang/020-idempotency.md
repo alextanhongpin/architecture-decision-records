@@ -35,5 +35,8 @@ Redis is a suitable option, since it is distributed and fast.
 
 ### Using postgres
 
+### SLA
+
+We will store the successful idempotency keys for 7-30 days, depending on the usecase. 
 
 ## Consequences
