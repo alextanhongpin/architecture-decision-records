@@ -27,6 +27,12 @@ If the idempotency key does not exists:
 
 Ideally, each steps should be designed as idempotent to avoid complexity.
 
+Idempotency is not the same as distributed locking. To achieve idempotency, we also need to implement locking to ensure that
+
+1. the same operation is not conducted twice
+2. access to the same resource is locked by a mutex
+3. the request must match in order to return an already completed operation 
+
 ## Decision
 
 ### Using redis
