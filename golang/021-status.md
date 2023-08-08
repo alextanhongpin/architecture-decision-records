@@ -114,7 +114,12 @@ For example, a customer may be making an order, but not paying immediately. Howe
 As discussed above, the status of an entity should be updated in the right sequence. To ensure atomicity when updating the status of an entity, a lock must be acquired, and the status must be validated before any action can be taken.
 
 
-Ideally, all status transition should only happen in a single place, e.g. an aggregate.
+Ideally, all status transition should only happen in a single place, e.g. an aggregate. Since domain aggregates should not include external dependencies like database etc that is required to store, possibly lock and update the states, we alternative approach. That can be publishing events, or creating another service `Transitioner` to validate and handle the state transition.
+
+The logic to determine the current status could also be improved by introducing checkpointing.
+
+A more complicated option is to use bitwise operator to check if steps are partially completed and valid. For most cases, a simple for loop is sufficient.
+
 
 
 ## Consequences
