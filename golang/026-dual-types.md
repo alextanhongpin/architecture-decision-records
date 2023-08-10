@@ -6,7 +6,11 @@
 
 ## Context
 
-Generics in go doesn't fit all usecases. Most of the time, we want to store the payload as bytes vefir
+Generics in go doesn't fit all usecases. Most of the time, we want to keep the data structure generic to handle polymorphism. However, golang's generic enforces the types to be known.
+
+### Unmarshal polymorphic type
+
+For example, we may want to unmarshal an event object by the type.
 
 
 ```go
@@ -19,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 )
+
+var UserCreatedEvent Event[UserCreated] = "user_created"
 
 func main() {
 	var b = []byte(`{
@@ -66,7 +72,16 @@ func (e Event[T]) Unmarshal(b []byte) (T, error) {
 type UserCreated struct {
 	Name string
 }
-
-var UserCreatedEvent Event[UserCreated] = "user_created"
-
 ```
+
+### Generic channel
+
+
+Another example is when sending payload to channels. We can use similar approach to above, to cast the type based on the type name.
+
+
+### Templates
+
+Generic can also be used to enforce the type of a data that is stored as any.
+
+For example, when building templates, we don't want to have a strict type...
