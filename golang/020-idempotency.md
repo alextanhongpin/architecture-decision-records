@@ -45,4 +45,27 @@ Redis is a suitable option, since it is distributed and fast.
 
 We will store the successful idempotency keys for 7-30 days, depending on the usecase. 
 
+### Key name
+
+The key name should be prefixed to avoid name collision.
+
+The root prefix should be short, probably `i9y` for idempotency.
+
+A second level prefix should indicate the idempotency operation name. This is to avoid mistakes with just using a resource id, which could span multiple operations.
+
+Take for example, two operations that are related to orders, payment and refunds. If the operation prefix is not defined, and only the order id is used, there is a possibility of conflict when running the idempoteny operation.
+
+Prefixing the operation makes it clear that they are two separate operation:
+
+```
+order-refund:order-123
+order-payment:order-123
+```
+
+### Hashing the request
+
+To save storage, we can hash the request payload. This also keeps the value secure since we do not keep sensitive values in the storage.
+
+However, care need to be taken to handle the evolution of the value (adding or removing fields).
+
 ## Consequences
