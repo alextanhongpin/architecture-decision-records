@@ -1,20 +1,23 @@
 # Step Driven Development
 
+## Status
+
+`draft`
+
+## Context
 
 Clean architecture promotes a clean separation of layers, but they are split based on responsibility.
 
-
-
 Things have changed, and the way we develop is geared towards delivering features. Every addition or change to a feature will involve code changes across different layers, aka vertical slicing.
 
-## Layers
+### Layers
 
 These layers tend to form a _gradient_, where some responsibility may overlap too.
 Layers are rarely independent as one would think. In clean architecture for example, each layer will depend on the layers below it. For example, in golang, if we have a usecase package that calls the repository package, one would think they could be clearly substituted by just declaring the interface at the usecase layer. However, there will be some types that might need to be imported from the repository layer, hence coupling them together.
 
 Regardless of how we layer our systems, one fact remain: layers are just human concerns. They do not in any way impact the way machine works. 
 
-## Function as a whole
+### Function as a whole
 
 Let's say you have a large usecase. No matter how you break it into smaller functions, or moving them into different layers, the size of that usecase do not actually change. 
 
@@ -24,7 +27,7 @@ If we break them up into smaller methods, we might lose context of the overall l
 
 As a developer, we need to find a sweet spot for the right size of a function. 
 
-## Layers are not the same
+### Layers are not the same
 
 Clean architecture helps to (probably) promote cleaner separation between layers. However, what it does not take into account (as with other architecture) is the rate of change and growth of the layers.
 
@@ -36,7 +39,7 @@ But usecase layer grows over time. We can imagine each layer as a ping pong ball
 
 Within the layer, there is not much guidance on how to further break it down into maintainable puzzle pieces. A method with 1000 lines will strike fear in every developer.
 
-## Step driven development
+### Step driven development
 
 So how to divide and conquer our ever-growing usecase layer?
 
@@ -44,15 +47,15 @@ Simple, we break them into steps.
 
 Abstractions are important too. The usecase layer has always been the dumping ground for all kinds of logic without abstraction. 
 
-## Code as Document
+### Code as Document
  One of the advantage of step driven development is that now it can read as a pseudo code. We can even add tools to log each steps as a snapshot together with the request response and also generate sequence diagram with it.
  
  
-## Functional Steps
+### Functional Steps
 
 Pure functions steps can be used directly, assuming that we have control over the input of the previous steps.
 
-## Steps with dependencies
+### Steps with dependencies
 
 For steps with dependencies, we can inject it after building it. Usually it is preferable to pass an interface too since we don't really care about the implementation.
 
@@ -144,7 +147,7 @@ Examples
 - swapping steps 
 - alternative flows
 
-## Testing
+### Testing
 
 Testing steps/layers can be challenging. 
 
@@ -158,7 +161,7 @@ This form of delegation ensures that both steps are _continuous_.
 
 One side effect is that they may be creating a dependency. 
 
-## Mocking
+### Mocking
 
 Why do we need mocking? the reason is simple, we do not want to execute the side effects (e.g database queries) or want to avoid making API calls. 
 
@@ -179,7 +182,7 @@ For the last point, we could have just tested the send welcome email step indepe
 
 In short, if all the steps are mockable, and there are no inlined steps, there is no value in mocking the steps for testing.
 
-## Data pipelines
+### Data pipelines
 
 Basically, we want to treat each step as a black box, where only the input and output matters, and can be pipe to the next step.
 
@@ -187,7 +190,7 @@ This is similar to how unix works.
 
 Basically every step we execute is just a series of data transformation. What is important is validating the request and response for each step.
 
-## Clean Usecase
+### Clean Usecase
 
 Most usecase suffers because they have inlined logic. A basic example is calculation.
 
@@ -201,7 +204,7 @@ The problem with this is, we now have to execute the whole usecase in order to t
 In short, don't in-line logic. That includes separating them into a method or a function call. Instead, shift the logic into a step and test the step separately.
 
 
-## Substeps
+### Substeps
 
 Once we have extracted all the steps from the usecase, we can focus on each step individually.
 
@@ -213,3 +216,10 @@ They are usually
 - business logic
 - side effects
 
+### Repository
+
+Instead of using steps, we can stick with the default approach of using repository. 
+
+There should only be one repository per usecase.
+
+All external data will be handled in the repository, which will only accept repository types and return domain types.
