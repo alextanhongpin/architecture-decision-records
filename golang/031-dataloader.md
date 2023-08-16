@@ -73,6 +73,18 @@ Care needs to be taken for values that are pointers, as they may share the same 
 The user can clone the object before using them if the states should not be shared.
 
 
+### Idle timeout
+
+Goroutines are cheap, but no resources are cheap. When idle, we can stop the goroutine. This is determined by the idle timeout.
+
+When there are new tasks to be scheduled, we can then restart the goroutine.
+
+Whenever we receive new messages from the channel, we can just perform a debounce and reset the idle timeout.
+
+
+
+
+
 
 
 
