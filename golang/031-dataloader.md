@@ -79,9 +79,52 @@ Goroutines are cheap, but no resources are cheap. When idle, we can stop the gor
 
 When there are new tasks to be scheduled, we can then restart the goroutine.
 
-Whenever we receive new messages from the channel, we can just perform a debounce and reset the idle timeout.
+Below, we demonstrate the application of idle timeout together with debounce mechanism.
 
+Everytime we received a new message from the work channel, we will reset the idle timeout as well as the ticker timeout. This essentially means that we will not execute the job as long as we already have a minimum batch size, or when there are no further message from the channel after the tick period.
 
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	idle := time.NewTicker(1 * time.Second)
+	defer idle.Stop()
+
+	ch := make(chan int)
+	t := time.NewTicker(100 * time.Millisecond)
+	defer t.Stop()
+
+	n := 0
+	threshold := 100
+
+	for {
+		select {
+		case <-idle.C:
+			fmt.Println("idle")
+			return
+		case <-t.C:
+			// Periodic.
+			fmt.Println("exec batch jobs")
+		case <-ch:
+			n++
+			if n > threshold {
+				n = 0
+				fmt.Println("exec batch job")
+			}
+			// Reset the idle timeout and perform debounce.
+			t.Reset(100 * time.Millisecond)
+			idle.Reset(1 * time.Second)
+		}
+	}
+}
+```
 
 
 
