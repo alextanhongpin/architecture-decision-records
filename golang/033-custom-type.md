@@ -57,4 +57,8 @@ Due to how verbose golang's error handling is, we choose to delegate the error h
 
 This allows another wrapper to nest the value object and call the valid method to perform nested validation.
 
+When do we choose to place validation externally as a separate function?
+
+Rule of thumb, place domain logic as method, but business logic as function.
+
 
