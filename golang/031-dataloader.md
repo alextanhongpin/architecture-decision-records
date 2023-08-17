@@ -6,14 +6,13 @@
 
 ## Context
 
-DataLoader is a concept of batching and fetching keys at a given period to reduce the N+1 query issue.
+DataLoader is a pattern for batching keys to fetch results to solve the N+1 query issue. The results will also be cached, so querying with the same key does not make additional queries to the database.
 
-This is more common in GraphQL where there can be concurrent resolvers attempting to fetch the same resources.
+DataLoader is more commonly used for GraphQL where there can be concurrent resolvers attempting to fetch the resources by ids.
 
-Instead of fetching the rows from the database individually, dataloader first batch the keys in-memory.
+DataLoader returns a thunk that could be resolved into a result or an error. When multiple queries are issued to the dataloader, the keys will first be batched in-memory.
 
-After certain interval, or when the number of keys has hit the threshold, dataloader executes the query and returns the result.
-
+When the number of keys hits the desired threshold, or after every tick, dataloader executes the query and returns the result.
 
 ## Decisions
 
@@ -25,15 +24,15 @@ In DataLoader, a _batch function_ must be provided to fetch the values for the u
 
 For the execution to be successful, every key must resolve to a value or an error.
 
-The results needs to be returned in the same order of the key in order to cache the key/value pair for future fetch.
+The results needs to be returned in the same order as the key in order to identify the key/value pair. The key/value pair is cached for future query.
 
 However, in reality, the following could happen:
 
 - the number of keys does not match the number of values
 - some keys does not have a value (perhaps it was deleted)
-- there are duplicate key but only one value is returned (`IN (...)` query actually removes the duplicates)
+- there are duplicate keys but only one value is returned (`IN (...)` query actually removes the duplicates)
 - the query failed due to internal error
-- some results may be filtered due to access control
+- some values may be filtered due to access control
 
 To fix the issue with the ordering, without needing the user to map the values manually, a _key mapper function_ could be provided that does the opposite of a batch function.
 
