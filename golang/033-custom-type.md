@@ -59,6 +59,8 @@ This allows another wrapper to nest the value object and call the valid method t
 
 When do we choose to place validation externally as a separate function?
 
-Rule of thumb, place domain logic as method, but business logic as function.
+Rule of thumb, place domain logic as method, but business logic as function. The distinction between domain logic and business logic may be unclear.
 
+An example of domain logic is email validation. The format is fixed. A business logic however can be enforcing that the email belongs to a certain organization.
+Or one user can have at most one unique email.
 
