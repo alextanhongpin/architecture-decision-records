@@ -6,10 +6,8 @@
 
 ## Context
 
-This ADR addresses the collection of metrics for libraries as well as logging etc 
+When integrating third-party packages, it is sometimes useful to be able to extract relevant metrics, logs and traces from the package.
 
-Slog has been released, and there is also the experimental events libraries 
+The author of the library should include those instrumentation and allow the developers to extract it.
 
-Collecting metrics is important, but it is hard to tap into all the critical sections of the library.
 
-Library author need to provide hooks to those metrics endpoints
