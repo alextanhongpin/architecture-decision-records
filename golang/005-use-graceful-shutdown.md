@@ -45,7 +45,7 @@ const (
 func New(handler http.Handler, port int) {
 	log := log.With().Str("pkg", "server").Logger()
 
-	// SIGINT: When a process is interrupted from keyboard by pressing CTRL+C. 
+	// SIGINT: When a process is interrupted from keyboard by pressing CTRL+C.
 	//         Use os.Interrupt instead for OS-agnostic interrupt.
 	//         Reference: https://github.com/edgexfoundry/edgex-go/issues/995
 	// SIGTERM: A process is killed. Kubernetes sends this when performing a rolling update.
