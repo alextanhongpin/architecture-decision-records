@@ -78,14 +78,12 @@ The constructor accepts primitive(s) and returns the custom type _without valida
 
 
 ```go
-// NewAccessToken returns a new access token with the given expiry.
-// Expiry cannot be less than 0.
-func NewAccessToken(subject string, expiry time.Duration) (AccessToken, error) {
-  if expiry <= 0 {
-		expiry = 1 * time.Hour
-	}
+type AccessToken string
 
-	return encryptWithExpiry(subject, expiry)
+func NewAccessToken(subject string) (AccessToken) {
+  	expiry := 1 * time.Hour
+
+	return AccessToken(subject, expiry)
 }
 ```
 
