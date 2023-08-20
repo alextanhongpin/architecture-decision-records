@@ -1,5 +1,11 @@
 # Test Repository
 
+## Status
+
+`draft`
+
+## Context
+
 Testing repository should be done by executing the tests through an actual database.
 
 This can be achieved by running test containers using docker.
@@ -20,6 +26,6 @@ Other testing pattern applies here
   - migrate only the tables you need (some libraries can migrate by inferring the data structure like gorm. if you have migration files, you can selectively run the files that modifies the table you want to test)
 - seed
   - seed the base data, e.g. user with different membership. Dont seed the table you want to test. Instead, use the repository methods to create them.
- 
+
 Parallel
 - use template database
