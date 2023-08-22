@@ -23,9 +23,18 @@ This ADR will also address the following questions
 - rollbacking transactions in tests
 - Query and Exec transaction
 
+### Passing down transaction object
+
+We do not want to pass down the transaction as an argument to the method we want to run in a unit of work. This will lead to a poor experience where people will just pass in a nil db.
+
+### Nesting transaction
+
+Passing down explicitly also complicates the contract when there can be more than 2 layers that requires access to the transaction object. This can be for example, in integration testing, where we want to run a transaction in the test and perform a rollback.
+
 ## Decisions
 
-We choose to
+### Context
+
 
 
 ## Consequences
