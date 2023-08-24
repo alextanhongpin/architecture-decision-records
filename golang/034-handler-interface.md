@@ -76,4 +76,21 @@ Another advantage is that user can provide their own implementation, which allow
 
 Aside from that, the handler can be further decorated with capabilities such as hooks for logging, instrumentation, retry etc.
 
+### Closed vs Open generics
 
+One issue with using generic handler is that we need to instantiate one new implementation per type. There is no official term, but I will just use the term closed generics here. 
+
+On the other hand, open generics doesnt restrict the generic types, and are commonly function.
+
+
+```go
+func Exec[T any](retry retrier, h handler[T]) (T, error) {
+  var v T
+  var err error
+  err = retry.Do(func() {
+    v, err = h()
+    return err
+  })
+  return v, err
+}
+```
