@@ -41,7 +41,23 @@ type publisher[T any] interface {
 A handler can have an input and can output one or many result.
 Each handler also accepts context as the first argument.
 
-In go1.21, `sync.Once` added `once.Value` and `once.Values` which could be a reference for generic types.
+In go1.21, `sync.Once` added `once.Func`, `once.Value` and `once.Values` which could be a reference for generic types. Below we see example of how we can make the methods more generic. This could be useful, say, if we want the second return value to be something other than error. Note that the generic types are limited to two, and not more. The request is not defined here.
+
+```go
+// Executes without returning error. Error handling is the caller's responsibility. Common pattern in concurrency or background job.
+type Func interface {
+  Exec(context.Context) 
+}
+
+type Value[T any] interface {
+  Exec(context.Context) (T)
+}
+
+type Values[T, U any] interface {
+  Exec(context.Context) (T, U)
+}
+```
+
 
 There are advantages of using interface vs a function.
 
