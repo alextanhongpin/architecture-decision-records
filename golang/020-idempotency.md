@@ -68,4 +68,31 @@ To save storage, we can hash the request payload. This also keeps the value secu
 
 However, care need to be taken to handle the evolution of the value (adding or removing fields).
 
+### Idempotency Goal
+
+The goal in idempotency is to eliminate duplicate requests. However, they come in different categories. I have not found the best naming, but this is what i have seen so far
+
+- identity based
+- operation based
+- sequential state
+
+Identity based and operation based is probably the most common category we encounter day to day.
+
+Identity operation usually involves an idempotency key that is based on the id of a resource, or could be hash of a payload. This could normally be handled in the database by setting a unique constraint in the column.
+
+Operation based is an extension to identity based idempotency. For a given identity, we want to perform an operation only once. For example, we want to send an email once a day for a user with an email, so the idempotency key is `send-email:john.doe@mail.com:20230822`. For operation based idempotency, we also check the request to ensure it matches.
+
+
+Sequential state is more complicated, but can happen for scenarios where an idempotency key cannot be based on a unique identifier, because the resource is not created yet. For example, when creating withdrawal for a user, we need to provide an idempotency key. However, every new withdrawal will actually generate a new idempotency key. This can be problematic, as we do not want users to be making many concurrent withdrawal requests, where the order of withdrawal may affect the balance. To ensure the withdrawal is done sequentially, we can introduce sequential state, where we used the last successful or failed withdrawal as the key for a given user, e.g. `payout:user:1:last_withdrawal_id`. This ensures that every withdrawal is successful or failed before the next one could be requested. This could also be a unique constraint within the database.
+
+### Articles
+
+https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+
+https://stripe.com/docs/api/idempotent_requests
+
+https://developer.mastercard.com/mastercard-send-person-to-person/documentation/api-basics/
+
 ## Consequences
+
+
