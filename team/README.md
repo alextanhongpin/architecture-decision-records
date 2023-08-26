@@ -22,6 +22,14 @@
   - secrets and configurations
   - cost tracking
 
+## Daily workflow
+
+- standup rituals
+- scrum
+- oncall weekly
+- pregrooming/grooming
+- retrospective
+
 
 ## Templates
 
