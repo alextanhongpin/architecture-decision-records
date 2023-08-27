@@ -29,4 +29,17 @@ Repository is the glue layer between the application layer (aka usecase) and the
 All external data is handled at the repository layer, and is mapped to the domain or application layer types where necessary.
 
 
+### Layer
+
+```
+boundary/
+- auth/
+  - auth.go
+  - usecase/
+    - usecase.go
+    - repository/
+      - repository.go
+```
+
+Here we see an example of deeply nested package structure. 
 
