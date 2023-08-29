@@ -43,3 +43,9 @@ boundary/
 
 Here we see an example of deeply nested package structure. 
 
+When structuring packages, apply the following rules:
+
+1. outer package cannot access inner package, except the main program
+2. inner program can access the outer package
+3. when declaring interface, the interface should not have types that belongs to other packages
+
