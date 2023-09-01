@@ -30,3 +30,31 @@ func f(args struct {
 	return nil
 }
 ```
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import "fmt"
+
+func main() {
+	createUser(args{name: "john"})
+	createUser(createUserArgs{name: "alice"})
+	fmt.Println("Hello, 世界")
+}
+
+type args struct {
+	name string
+}
+
+type createUserArgs = struct {
+	name string
+}
+
+func createUser(args createUserArgs) {
+
+	fmt.Println(args.name)
+}
+
+```
