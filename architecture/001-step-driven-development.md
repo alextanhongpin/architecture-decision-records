@@ -223,3 +223,42 @@ Instead of using steps, we can stick with the default approach of using reposito
 There should only be one repository per usecase.
 
 All external data will be handled in the repository, which will only accept repository types and return domain types.
+
+### Testing
+
+We only want to test the success scenario for the whole business unit. The failure scenario for each step can be tested separately.
+
+Mocking a step to fail and testing the whole business unit will lead to O(N)^2 complexity.
+
+
+### Use single struct per write usecase
+
+For reads, we can have a struct with many methods, since they usually involves querying the data store and does not have complicated substeps.
+
+For writes, it is recommended to use a single struct per business units.
+
+Writes usually has complex steps involved and we want to be able to test each steps individually.
+
+```go
+type UserReader interface {
+  Find(ctx context.Context, id string) (*User, error)
+  List(ctx context.Context) ([]User, error)
+  // ...
+}
+```
+
+The business specific writer will have the main method called `Exec`, while the steps are private methods.
+```go
+type AuthenticateUseCase struct {
+  repo authenticateRepository
+}
+
+func (uc *AuthenticateRepository) Exec(ctx context.Context, req AuthenticateRequest) (string, error) {
+  // A series of steps that are private methods.
+  user, err := uc.repo.FindUserByEmail(ctx, req.Email)
+  if err != nil {
+    return "", err
+  }
+  // uc.encrypyPassword()
+}
+```
