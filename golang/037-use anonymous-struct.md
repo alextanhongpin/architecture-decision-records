@@ -1,35 +1,15 @@
+# Use Anonymous Struct as DTO
+
+## Status 
+
+`draft`
+
+## Context
 
 Use anonymous struct to reduce coupling between layers.
-```go
-// You can edit this code!
-// Click here and start typing.
-package main
 
-import "fmt"
+DTO is Data Transcer Object, a stateless struct that is usually just meant to pass information from one layer to another.
 
-func main() {
-	f(struct {
-		age  int
-		name string
-	}{name: "john"})
-	f(args{
-		name: "alice",
-	})
-}
-
-type args struct {
-	age  int
-	name string
-}
-
-func f(args struct {
-	age  int
-	name string
-}) error {
-	fmt.Println(args.name)
-	return nil
-}
-```
 
 ```go
 // You can edit this code!
@@ -58,3 +38,10 @@ func createUser(args createUserArgs) {
 }
 
 ```
+
+Using type alias together with anonymous struct has several advantages:
+
+- we can use the named struct defined in the package
+- we can define our own named typed, as long as the type definition matches
+
+The latter is powerful, especially since you might not want to couple the implementation with an external package.
