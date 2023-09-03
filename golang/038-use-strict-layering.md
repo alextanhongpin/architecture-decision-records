@@ -31,13 +31,6 @@ Below we see an example of how to structure the app, and the reasons behind it.
 
 ```
 presentation/
-rest/
-  middleware/
-  request/
-  response/
-  api/v1
-grpc/
-graphql/
 domain/
   application/
     repository/
@@ -46,5 +39,50 @@ adapter/
   stripe/
 ```
 
+In diagram, it may look like this:
 
+```mermaid
+flowchart TD
+    c[Client]
+    p[Presentation]
+    app[Application Service]
+    r[Repository]
+    d[Domain]
+    a[Adapter]
 
+    c -- params --> p
+    p -. response .-> c
+    p -- request --> app
+    app -.result.-> p    
+    app -- query ---> r
+    r -- interacts with --> a
+    a -- maps to --> d
+    d -. resolve .-> app
+```
+
+### Presentation
+
+The `presentation` layer is the layer where the client communicates with the application. The folders are usually named based on the implementation, for example `rest` for HTTP APIs, `graphql`, and `grpc`. For `cli`, we just place them in the `cmd` folder because that seems to be the convention for golang.
+
+```
+rest/
+  middleware/
+  request/
+  response/
+  api/v1
+grpc/
+graphql/
+cmd/
+```
+
+This layer is responsible for parsing the request (query string, form, body, http parameters) into a type definition that the application service can consume. 
+
+This layer also handles marshaling (serialization in other languages) to json, csv, html etc, depending on what your application is serving.
+
+If the application service returns error, the presentation layer is also responsible for the formatting and translation of the error message.
+
+Other responsibilities includes pre-validation as well as access control (authorization).
+
+The `presentation` layer should not have any business logic or orchestration.
+
+### Application Service
