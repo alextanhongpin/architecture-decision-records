@@ -1,4 +1,4 @@
-# Use strict layerig
+# Use strict layering
 
 ## Status
 
