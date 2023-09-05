@@ -86,3 +86,9 @@ Other responsibilities includes pre-validation as well as access control (author
 The `presentation` layer should not have any business logic or orchestration.
 
 ### Application Service
+
+The application service (or commonly called usecase) is where your application logic lies.
+
+
+There is no business logic in this layer. The code should be written in a step-by-step way that describes the operation to be carried out.
+
