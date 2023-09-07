@@ -92,3 +92,7 @@ The application service (or commonly called usecase) is where your application l
 
 There is no business logic in this layer. The code should be written in a step-by-step way that describes the operation to be carried out.
 
+### Domain 
+
+The layer where your business logic resides.
+
