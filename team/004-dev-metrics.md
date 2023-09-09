@@ -77,4 +77,19 @@ Range
 - yearly
 - all time
 
+Measure
+- rate of change
+- cumulative
 
+Metrics
+- popular repository
+- popular language
+- number of repositories touched
+- number of commits
+- lines added
+- lines removed
+- files changed
+- type of files changed (special for readme)
+- number of words for markdown
+- number of PRs created
+- number of issues created
