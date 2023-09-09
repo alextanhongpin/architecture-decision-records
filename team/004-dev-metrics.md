@@ -9,7 +9,7 @@
 
 Measuring developer metrics is useful to understand and gain insights on how things works. It is hard to improve on things you cannot measure.
 
-The metrics collected are not meant for comparing against different developers.
+The metrics collected are not meant for comparing against different developers. The managers in charge of the developers should have a clear understanding on how the metrics and the scope of the developers tally.
 
 
 What metrics are useful?
@@ -69,3 +69,12 @@ Questions:
 - where to run (cron, daily, github actions)
 - where to store (postgres, sqlite, git commit to repository daily)
 - where to visualize -> website
+
+Range
+- daily
+- weekly
+- monthly
+- yearly
+- all time
+
+
