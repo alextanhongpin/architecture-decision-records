@@ -50,3 +50,5 @@ For most scenario, we don't need to do publish the message externally. Events ca
 
 
 ## Consequences
+
+https://www.ben-morris.com/event-driven-architecture-and-message-design-anti-patterns-and-pitfalls/
