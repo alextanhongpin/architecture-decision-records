@@ -9,7 +9,11 @@
 [uow](https://github.com/alextanhongpin/uow)
 
 
-Unit of work is a pattern to manage thr lifecycle of database transaction in your application.
+Unit of work is a pattern to manage the lifecycle of database transaction in your application.
+
+(why exactly is unit of work)
+
+
 
 Most people are aware of the repository pattern. However, most repository are designed poorly. They are assumed to work in separate connection, hence running them in a transaction is not possible.
 
@@ -22,6 +26,15 @@ This ADR will also address the following questions
 - running nested transactions
 - rollbacking transactions in tests
 - Query and Exec transaction
+
+In an application, transactions are normally started in the application service layer.
+
+However, since the repository layer itself is responsible for performing the query, the transaction connection needs to be passed down.
+
+In the repository layer, the if no transaction connection is passed down, then the normal database connection is then used to perform the query.
+
+In a strongly typed language, the transaction connection and nornal database connection may be of different types, so a interface (this could be abstract class in other languages) is required to represent the common methods between them.
+
 
 ### Passing down transaction object
 
