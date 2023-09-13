@@ -3,12 +3,28 @@
 ## Status
 
 <!--What is the status, such as proposed, accepted, rejected, deprecated, superseded, etc.? -->
-`proposed`
+`draft`
 
 ## Context
 
 <!--What is the issue that we're seeing that is motivating this decision or change?-->
-Testing golang's handler requires comparing json values. For large JSON response, there is a lack of visibility on the JSON structure. So developers need to know the shape of the before writing assertions.
+
+Most services are build to serve APIs. In golang, handlers are executed whenever an API endpoint is called. 
+
+Golang comes with the standard library `httptest` to test the behaviour of the handlers without having to run a server.
+
+```go
+// TODO: show example here
+```
+
+Aside from testing handlers, `httptest` also provides a function to setup a test server to test the beavhiour from a client's perspective. 
+
+```go
+// TODO: show example here
+```
+
+
+Regardless, writing the tests can be a chore, especially when we have large payloads. There is always the question of how detailed we want our assertions to be. Should all the fields be asserted? How do we avoid duplication in assertions test between different handlers returning the same payload? 
 
 
 
