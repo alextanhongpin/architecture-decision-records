@@ -23,3 +23,8 @@ Use public
 ### Functional option
 
 Avoid if possible.
+
+## Decision
+
+Use public fields for large structs, e.g. for data transfer objects (DTO) or for optional options or common dependencies (e.g Logger).
+
