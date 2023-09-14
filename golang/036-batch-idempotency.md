@@ -40,3 +40,9 @@ The lifecycle of the idempotent batch operation could be as follow:
 3. execute the operation one by one
 4. for each operation, keep track of the idempotency status
 5. once all tasks are done (or failed), mark the batch as done
+
+
+## Decisions
+
+To guarantee idempotency for batch operation, we first need to track each individual operation, and then the whole operation.
+
