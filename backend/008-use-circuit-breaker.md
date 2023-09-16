@@ -37,3 +37,8 @@ Figuring out the right threshold can be hard. It can be a fixed value or percent
 
 
 The granularity can be at service level, which means an entire endpoint. Whether to implement it at path level, it depends on the application.
+
+### Threshold
+
+
+Ideally the circuit breaker should only be opened if the service fails 100%. To guarantee that, we need to sample data in the past time window.
