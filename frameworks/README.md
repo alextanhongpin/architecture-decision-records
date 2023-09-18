@@ -7,7 +7,7 @@ Don't use them for the sake of using them. Adding more processes complicated dev
 
 Instead, try to make the process seamless.
 
-In my own words, make it as _natural as breathing_. 
+In my own words, make it as _natural as breathing_.
 
 ## Example: ChangeDocs
 
@@ -23,3 +23,16 @@ The action taken at that time is to just manually executing the index creation i
 
 
 Those actions and the reason of change should be documented in a changedocs with the relevant people tagged.
+
+
+## TODO
+
+- onboarding steps
+- on-call runbook
+- development guide
+	- setting up database/redis/infras
+	- setting up local server
+	- setting up services
+- deployment guide
+- database migration guide
+- change docs for applying scripts
