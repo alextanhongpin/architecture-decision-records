@@ -12,28 +12,28 @@ Calls to external resources may fail. When that happens, we want to avoid stompi
 
 When that happens, there are few ways to address the issue.
 
-We can simply return an error `503 Service Unavailable` to the caller and allow them to retry later. 
-Alternatively, we can implement an auto-switch mechanism to switch to a different provider (e.g. when Stripe fails, switch to Paypal). 
+We can simply return an error `503 Service Unavailable` to the caller and allow them to retry later.
+Alternatively, we can implement an auto-switch mechanism to switch to a different provider (e.g. when Stripe fails, switch to Paypal).
 
 
 ## Decisions
 
-We decided to fail fast using a circuit breaker. 
+We decided to fail fast using a circuit breaker.
 
 
-### Metrics 
+### Metrics
 
 We need to measure how frequent did the circuit breaker opened.
 
-Another important metric is when the circuit breaker transitioned from half-open to opened. This indicates that the service fails to recover. 
+Another important metric is when the circuit breaker transitioned from half-open to opened. This indicates that the service fails to recover.
 When this occur over a certain threshold, we can fallback to other providers.
 
 
 ### Scalability
 
-Figuring out the right threshold can be hard. It can be a fixed value or percentage based. 
+Figuring out the right threshold can be hard. It can be a fixed value or percentage based.
 
-### Granularity 
+### Granularity
 
 
 The granularity can be at service level, which means an entire endpoint. Whether to implement it at path level, it depends on the application.
@@ -42,3 +42,6 @@ The granularity can be at service level, which means an entire endpoint. Whether
 
 
 Ideally the circuit breaker should only be opened if the service fails 100%. To guarantee that, we need to sample data in the past time window.
+
+
+The classical circuit breaker only checks the threshold of error. However, there are some issues with that.
