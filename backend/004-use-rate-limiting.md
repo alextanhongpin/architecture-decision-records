@@ -65,6 +65,16 @@ Quota defines the number of available requests that can be made and decreases ov
 
 At time 0.2s, user will have 4 requests remaining. At 0.8s, user will have 1 request remaining.
 
+## Time window
+
+A naive way to define the time window is to just divide them evenly. In reality, this will always lead to burst at the start or end of the time window.
+
+Take for example 5 request per second. If the operation is controlled, we can just fire the request at the end of the interval, every 200ms.
+
+However, if the operation is uncontrolled, it is possible for user to make request at the end of the first interval, and at the start of the next interval, leading to sudden burst.
+
+A better approach is to divide the period over twice the requests, and check if the operation is done at even boundaries. For some use cases, it might not make sense, so setting a min interval between requests is simpler.
+
 ## Decisions
 
 Implementing the right rate limit requires understanding the usecase.
