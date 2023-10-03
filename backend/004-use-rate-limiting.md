@@ -77,8 +77,11 @@ The most naive implementation will just require:
 For more advance usecase, we can also configure the following:
 
 - min interval: the minimum interval before each request. The maximum can be calculated using period/limit. Setting this to 0 is not recommended for high traffic application
-- 
+- quota: can replace limit
+- burst: allow burst request
 
 
 
 ## Consequences
+
+Rate limiting protects your server from DDOS.
