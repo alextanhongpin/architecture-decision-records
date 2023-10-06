@@ -65,7 +65,11 @@ Quota defines the number of available requests that can be made and decreases ov
 
 At time 0.2s, user will have 4 requests remaining. At 0.8s, user will have 1 request remaining.
 
-## Time window
+### Capacity and refill rate
+
+Another concept is that capacity and refill rate does not have to be equal. For example, if the capacity is 5 request, then the refill rate does not have to be 5req/s, or 200ms each request. It can be lower, e.g. 100ms per request as long as it doesn't hit the limit.
+
+### Time window
 
 A naive way to define the time window is to just divide them evenly. In reality, this will always lead to burst at the start or end of the time window.
 
@@ -89,8 +93,6 @@ For more advance usecase, we can also configure the following:
 - min interval: the minimum interval before each request. The maximum can be calculated using period/limit. Setting this to 0 is not recommended for high traffic application
 - quota: can replace limit
 - burst: allow burst request
-
-
 
 ## Consequences
 
