@@ -11,10 +11,17 @@ When designing libraries, it is common to have a handler.
 
 A handler is just a function that is passed as a first class function.
 
+### Middleware
+
+Middleware are basically decorators. They allow adding behaviour to the handler without modifying the original handler.
+
+Designing a consistent handler interface will allow better reusability of middlewares.
+
 ### Hooks
 
-We should not have hooks in the library. Instead, the user should be able to extends the handler before passing it down.
+Hooks are meant to tap into the lifecycle of the class. Ideally we should not encourage the use of hooks in application. Use middleware instead.
 
+For publishing internal states, use event publisher instead.
 
 
 ## Decision
@@ -72,9 +79,13 @@ func (h Handler[T]) Exec(ctx context.Context, v T) error {
   return h(ctx, v)
 }
 ```
+
 Another advantage is that user can provide their own implementation, which allows them to pass a struct with additional data.
 
 Aside from that, the handler can be further decorated with capabilities such as hooks for logging, instrumentation, retry etc.
+
+However, just passing function is equally simple. Any handler can be converted to the function form.
+
 
 ### Closed vs Open generics
 
@@ -84,7 +95,7 @@ On the other hand, open generics doesnt restrict the generic types, and are comm
 
 
 ```go
-func Exec[T any](retry retrier, h handler[T]) (T, error) {
+func Do[T any](retry retrier, h handler[T]) (T, error) {
   var v T
   var err error
   err = retry.Do(func() {
@@ -94,3 +105,14 @@ func Exec[T any](retry retrier, h handler[T]) (T, error) {
   return v, err
 }
 ```
+
+## Decisions
+
+Do
+- use function form instead of handler
+- use consistent naming, `Do` to return values, `Exec` to return only errors
+- pass `ctx` as the first argument - it makes it easier to evolve the function
+- use open generic patterns
+
+Don't
+- use the interface form
