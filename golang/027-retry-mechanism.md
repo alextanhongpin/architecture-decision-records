@@ -16,8 +16,9 @@ However, care needs to be taken to ensure that retry process does not block othe
 
 This ADR proposes several approach to optimizing the retry time, especially when adding jitter which could cause the total duration to be unpredictable.
 
-## Decision
 
+
+## Decision
 
 
 Our retry policy consists of two basic things:
@@ -68,6 +69,32 @@ The `hard limit` restricts the total max duration.
 
 Say we have a soft limit of 1s, but hard limit of 2s. The first 3 requests only took 950ms, which means we can potentially try the last request. However, the last request violates the hard limit, so we will not include that.
 
+
+### Retry Options
+
+A retry can have the following options:
+- max attempt: the number of attempts allowed
+- max delay: the max delay per attempt
+- max duration: the max total duration for retry
+
+```markdown
+Scenario: Set max attempt
+Given that I set a max attempt of 5,
+When the retry keeps failing,
+Then it retry 5 times,
+Before ending with error max attempt.
+```
+
+```markdown
+Scenario: Set max delay
+Given that I set a max delay of 1s,
+When a new delay is generated,
+Then the delay is at most 1s.
+```
+
+### Skipping retry
+
+Not all operations needs to be retried. For example, when the request or operation is cancelled by user (`context.Cancelled`).
 
 
 ## Consequences
