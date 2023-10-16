@@ -40,7 +40,7 @@ Start by providing the diagram, then explain each step where necessary:
 ---
 title: Leaderboard Update Level
 ---
-%%{init: {'theme': 'default', 'themeVariables': {'darkMode': false}, "flowchart" : { "curve" : "stepBefore" } } }%%
+%%{init: {'theme': 'default', 'themeVariables': {'darkMode': false}, "flowchart" : { "curve" : "stepAfter" } } }%%
 flowchart TD
     start([Start])
     valid_date?{is 1st of 15th?}
