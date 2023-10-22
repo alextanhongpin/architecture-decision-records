@@ -8,6 +8,12 @@
 
 ## Context
 
+An operation is idempotent if executing it with the same request produces the same response. The execution happens exactly-once, as subsequent request will only return the cached response.
+
+An idempotent operation is usually accompanied by an idempotency key to denote a unique operation.
+
+
+
 We want to implement idempotency to prevent issues with double requests. This can be for example, double withdrawal or double delivery of SMS.
 
 For most cases, we can keep the idempotent key in the same table, e.g. orders.
