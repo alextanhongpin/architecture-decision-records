@@ -8,13 +8,24 @@
 
 ## Context
 
+### Definition
+
 An operation is idempotent if executing it with the same request produces the same response. The execution happens exactly-once, as subsequent request will only return the cached response.
 
 An idempotent operation is usually accompanied by an idempotency key to denote a unique operation.
 
+The idempotency key, request and response is usually stored in a cache for a period of time. The retention period is not forever. After the retention period expired, the same request may be executed again. A permanent storage can be used as an alternative if we want to keep the operation permanently idempotent.
+
+### Problem Statement
 
 
 We want to implement idempotency to prevent issues with double requests. This can be for example, double withdrawal or double delivery of SMS.
+
+### Storage
+
+Idempotency is just another form  of unique constraint in a relational database. By making a column unique, we can prevent new rows created that matches the column.
+
+### Sotring in table 
 
 For most cases, we can keep the idempotent key in the same table, e.g. orders.
 
