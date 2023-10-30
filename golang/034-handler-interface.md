@@ -112,7 +112,13 @@ func Do[T any](retry retrier, h handler[T]) (T, error) {
 
 ### Type Assertion
 
-Better?
+Better? Using type assertion couples an implementation to a type. This may be desirable for performance, but it makes the method less dynamic.
+
+But instead of implementing it twice, we can still keep the type declaration and use `any`.
+
+## Passing context
+
+Should context be passed as the first argument? Preferably, if there is a need to inject additional context, e.g. unit of work.
 
 
 ## Decisions
