@@ -9,7 +9,11 @@
 
 When designing libraries, it is common to have a handler.
 
-A handler is just a function that is passed as a first class function.
+A handler is just a function that is passed as a first class function. Handlers are normally used for callbacks.
+
+We can design handlers as interface or purely function.
+
+The former is useful if you have complicated dependencies for your function, and you need to chain multiple handler. A good example is the `http.HandlerFunc`. This allows interchanging between function and interface.
 
 ### Middleware
 
@@ -105,6 +109,11 @@ func Do[T any](retry retrier, h handler[T]) (T, error) {
   return v, err
 }
 ```
+
+### Type Assertion
+
+Better?
+
 
 ## Decisions
 
