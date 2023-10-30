@@ -120,6 +120,8 @@ But instead of implementing it twice, we can still keep the type declaration and
 
 Should context be passed as the first argument? Preferably, if there is a need to inject additional context, e.g. unit of work.
 
+However, for stuff like tracing etc, it is arguably easier to decorate the function than to pass the context. To build reusable library, we do not want to couple the implementation of tracing to the package, unless it can be achieved using the standard library.
+
 
 ## Decisions
 
