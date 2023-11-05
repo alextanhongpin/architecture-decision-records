@@ -6,29 +6,29 @@
 
 ## Context
 
-Dry run is useful for testing out the behaviour without changing internal state.
+Dry run is a way to test the behavior of a system without actually making any changes. This can be useful for testing new features or for debugging problems.
 
-During dry run, the library can
+During a dry run, the system will:
 
-- run initial validation
-- log execution steps
-- return expected result after executing `ExecutionResult`
-- generate potential events 
+* Run initial validation checks
+* Log execution steps
+* Return expected results
+* Generate potential events
 
-Dry run is common in toolings, such as Terraform etc. However, it can also be added to domain-heavy application. A client can for example call the endpoint with dry run (or `validate_only`) option for validation and showing errors on thr form.
+Dry run is often used in toolings, such as Terraform, to test changes before they are applied to production. It can also be used in domain-heavy applications to validate user input and show errors on the form.
 
-One other example of dry run is rate limiter.
+For example, a rate limiter might have an `Allow` method that checks if an operation is allowed and increments a counter. However, there are times when we just want to check if an operation is allowed without actually incrementing the counter. In this case, we can use a `AllowAt` method to check if we can execute the operation at a later time.
 
-A rate limiter has an `Allow` method that checks if the operation is allowed, and increments the counter. However, there are times where we just want to check if an operation is allowed without actually incrementing the counter. A method `AllowAt` can be used to check if we can execute the operation at a later time.
+**Decision**
 
+We will add dry run support to our CLI, API, and packages. This will allow users to test behaviors and expected outcomes without changing internal state.
 
-## Decision
+**Consequences**
 
-Dry run can be added 
-- in a CLI
-- in API as `validate_only` option
-- in packages
+Adding dry run support will have the following consequences:
 
-when we need to assert behaviours/expected outcome without changing internal state.
+* It will make it easier for users to test new features and debug problems.
+* It will reduce the risk of making unintended changes to production systems.
+* It will increase the confidence of users in the system.
 
-## Consequences
+We believe that the benefits of adding dry run support outweigh the costs. We are therefore proceeding with this change.
