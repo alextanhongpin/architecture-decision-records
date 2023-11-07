@@ -50,6 +50,10 @@ unhappy paths are usually domain behaviour, so they could be tested separately.
 
 So that we don't have to repeat tests.
 
+In golang, it is common to see poorly written tests.
+
+There are tests that mocks the dependencies to return error, and that is run repeatedly until all dependencies are tested. That usually leads to tests with o2 runtime.
+
 ### Step driven development
 
 ### Mock dependencies one layer under
