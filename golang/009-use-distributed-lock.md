@@ -1,16 +1,10 @@
 # Use distributed lock
 
-There are many approaches to locking, and some can be local (`singleflight`) or distributed (requires the usage of redis, or postgres's advisory lock).
 
+Distributed locks are used to prevent concurrent access to a shared resource by multiple processes. This can be achieved by using a distributed locking service, such as Redis or ZooKeeper.
 
-The actual implementation depends on the usecase, but the goal is mostly to prevent concurrent action on a given operation (similar to golang's mutex).
+**Note:**
 
-
-
-In order to perform locking, the operation must be uniquely identified across different processes. The steps to locking may look like this:
-
-1) Lock a unique identifier
-2) Perform the operation
-1) Release the lock
-
-The operations is ideally idempotent.
+* Distributed locks are not a substitute for proper concurrency control. They should only be used when it is necessary to prevent concurrent access to a shared resource.
+* Distributed locks can introduce additional latency to your application. You should carefully weigh the benefits of using a distributed lock against the potential performance impact.
+* Distributed locks can be used to implement distributed transactions. However, you should carefully consider the implications of using distributed transactions before doing so.

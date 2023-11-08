@@ -1,6 +1,6 @@
 # Use Graceful Shutdown
 
-## What
+##  What
 
 Graceful shutdown ensures existing processes are terminated before the server is shut down. This could be
 
