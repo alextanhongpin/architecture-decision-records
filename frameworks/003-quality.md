@@ -22,3 +22,8 @@ Why?
 - as long as it works, it works
 - we do not care about the quality of the code
 - aside from capturing regression through unit/integration tests, we also want to measure performance
+
+- How do we measure quality?
+- store the last 100 benchmark
+- also store the lowest benchmark
+- compare the diff between last and new
