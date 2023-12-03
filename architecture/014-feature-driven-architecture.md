@@ -11,3 +11,11 @@ What is one of the main issue when working on large legacy projects?
 FDD tries to solve this by placing all the logic into a single file.
 
 If there are issues with the feature, then jusy need to look at one file.
+
+
+## Structure
+
+
+How would the folder structure looks like
+
+- domain/<your domain>/usecase/create.go
