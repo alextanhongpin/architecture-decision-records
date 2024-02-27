@@ -15,3 +15,5 @@ Pseudo code:
 
 1. init a dumper per test
 2. call dump specific method
+
+in golang, we can use txtar to dump the output to multiple files in one file. 
