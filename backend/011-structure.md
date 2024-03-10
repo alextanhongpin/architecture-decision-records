@@ -13,3 +13,4 @@ What cross cutting concerns does every backend code needs? We can learn from mat
 - Ruby on Rails
 - Django
 - [Nest JS](https://docs.nestjs.com/)
+- https://www.cosmicpython.com/
