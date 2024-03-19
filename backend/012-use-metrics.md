@@ -28,6 +28,12 @@ and get the following visualization
 - rate
 
 How do we create the dashboard? If we have 100 endpoints, do we create a dashboard for each endpoints metrics? Probably nope, can we show the metric by the app and then allow granular searchinng?
+### Release
+
+when creating a new release, we also want to differentiate between stable and canary release.
+
+Are there any automated way to add the release tag?
+
 
 ### SQL
 
