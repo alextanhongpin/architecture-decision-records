@@ -27,6 +27,12 @@ and get the following visualization
 - percentile
 - rate
 
+How do we create the dashboard? If we have 100 endpoints, do we create a dashboard for each endpoints metrics? Probably nope, can we show the metric by the app and then allow granular searchinng?
+
+### SQL
+
+We can do the same for all clients like sql or redis etc.
+
 ### Client side
 
 Above we implement it for server side calls. We can do the same for client side calls 
