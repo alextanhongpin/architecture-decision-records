@@ -44,4 +44,10 @@ We can do the same for all clients like sql or redis etc.
 Above we implement it for server side calls. We can do the same for client side calls 
 
 
+## Analog
+
+Monitoring is essential to provide early insights on what's happening in your system. Product managers, engineers and even the stakeholders should have visibility on the product/system in place.
+
+Not having monitoring is like people blindly crossing the road without looking at the traffic light. Most of the time you will end up alive, but not always.
+
 
