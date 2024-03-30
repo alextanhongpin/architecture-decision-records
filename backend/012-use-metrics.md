@@ -50,4 +50,9 @@ Monitoring is essential to provide early insights on what's happening in your sy
 
 Not having monitoring is like people blindly crossing the road without looking at the traffic light. Most of the time you will end up alive, but not always.
 
+## Errors
+
+While it is useful to track error rate as metrics, it still cannot replace the usefulness of logging. Both is essential to track and mitigate errors in production.
+
+Metrics can be used to create alerts, and then logs can be traced at the exact time range to search for the issue.
 
