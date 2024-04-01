@@ -25,3 +25,5 @@ sha-yymmdd
 // v2
 uuid
 ```
+
+This might impact how joins are made.
