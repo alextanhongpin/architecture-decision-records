@@ -80,5 +80,10 @@ Since most dependencies will be mocked, it is easy to decorate those dependencie
 - redis
 - events
 
+### Why does this work
+
+- diffing (addition/removal of fields)
+- payload dissimilarity 
+
 
 ## Consequences 
