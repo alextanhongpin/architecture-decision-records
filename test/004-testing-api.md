@@ -60,3 +60,13 @@ From the client's perspective, it may be important to know if the payload is val
 
 - matches
 - skip dynamics values like body or header
+
+### Integration test
+
+Is there any value in doing integration testing?
+
+By integration testing, it means creating a set of API calls that actually hits the server and checking if the response is at least successful.
+
+Yes, in fact this makes regression much simpler.
+
+We can combine this with snapshot testing, hence eliminating the payload dissimilarity issue.
