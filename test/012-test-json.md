@@ -13,3 +13,5 @@ https://github.com/alextanhongpin/learn-cuelang/blob/master/go/validate.go
 
 We can convert the golang type to cue:
 https://github.com/alextanhongpin/learn-cuelang/blob/master/go/go-to-cue.go
+
+Unfortunately there doesnt seem to be any way to convert json to cue validation. But we can take advantage by just doing equality check using the json value.
