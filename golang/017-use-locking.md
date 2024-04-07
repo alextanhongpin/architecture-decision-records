@@ -22,6 +22,8 @@ Distributed locking mechanisms typically use a central locking service, such as 
 
 Each locking mechanism has its own tradeoffs, so it is important to choose the right one for your needs.
 
+If the process can be asynchronous, we can also use Kafka and send all the message to the same partition by key. This allows processing the message by the consumer serially for a given partition key, e.g. when updating transaction state, we use transaction id as the partition key.
+
 ## Decision
 
 We will use Redis for distributed locking in our system. Redis is a fast, in-memory key-value store that is well-suited for locking applications. It provides a simple and efficient locking API that is easy to use.
