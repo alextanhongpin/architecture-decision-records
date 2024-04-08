@@ -6,10 +6,15 @@
 
 ## Context
 Goal
+- visualize the variable value by dumping the representation into a file
 - visibility in data structure transformation (e.g. SQL, data, json)
 - reduce need to write self-assertions. For objects with complex structure, nested objects and large number of fields, we do not one to write assertions for each of them.
 - rely on PR reviews to get feedback and catch inconsistency
 - git-friendly test output. Diffable and part of the commit.
+
+In snapshot testing, we only care about two things
+- values must be equal, if not, what changed?
+- schema must be correct. are the types or value matches the correct schema, e.g. email, time format, uuid, is boolean/number/string
 
 
 For most tests, the step is usually as follow
