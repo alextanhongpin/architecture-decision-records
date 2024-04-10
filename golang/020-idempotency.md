@@ -21,6 +21,8 @@ The idempotency key, request and response is usually stored in a cache for a per
 
 We want to implement idempotency to prevent issues with double requests. This can be for example, double withdrawal or double delivery of SMS.
 
+The requests can be sth that does not have idempotency implemented, e.g. sms delivery, or may be expensive to execute multiple times, e.g. machine learning api request.
+
 ### Storage
 
 Idempotency is just another form  of unique constraint in a relational database. By making a column unique, we can prevent new rows created that matches the column.
@@ -122,6 +124,19 @@ Sequential state is more complicated, but can happen for scenarios where an idem
 
 What happens if there is an error? Do we still store the request/response? Yes. The client will have to make a new request that is different from the previous one.
 
+## Behaviour
+
+Single operation, bounded by time
+- request 1 enter
+- request is cached
+- request 2 enter
+- error request in flight
+- request 1 completed
+- request 3 enter
+- got cached response
+
+
+  
 
 
 ### Articles
