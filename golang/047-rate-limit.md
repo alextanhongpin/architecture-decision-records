@@ -46,7 +46,7 @@ We can still use a single key, so it is performant. The advantage is we have smo
 
 Fixed window can be simple. E.g. just taking the current time now and round it down, then setting the key in redis and expire it after a period.
 
-However, the issue happens when rounding the keys all to the same period. All requests will expire at the same time! Would it be better to have different start time instead? (redis should be performant enough at handling expired keys)
+However, the issue happens when rounding the keys all to the same period. All requests will expire at the same time! Would it be better to have different start time instead? (redis should be performant enough at handling expired keys, see here https://groups.google.com/g/redis-db/c/0v1s3FK1BuI).
 
 This means we can no longer use the basic strategy to set and expire the key anymore. We need to store both the expiration and count in the value. We can use redis pexpiretime.
 
