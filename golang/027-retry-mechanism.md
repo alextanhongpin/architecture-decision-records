@@ -96,6 +96,30 @@ Then the delay is at most 1s.
 
 Not all operations needs to be retried. For example, when the request or operation is cancelled by user (`context.Cancelled`).
 
+### Policy
+
+What makes a good retry? A simple and clear policy.
+
+The retry library should be simple, with minimum the list of delays for each retry. Why is this better than generating it on the fly? 
+- more performant (reduce loop cycle, as no generation needed)
+- predictable delays between each retries (before jitter of course)
+- configurable - you might want a policy that not necessarily be exponential, e.g. exponential in the beginning, then capped in the end
+
+Options:
+- list of delays
+- max wait timeout (if you have an SLA and does not want to exceed the duration, especially when the retry includes jitter) actually just allow user to use context for this 
+- use jitter: encouraged, default to normal jitter function with the delay + random(delay/2), but customisable
+
+Hooks
+- retry event, recording start, retry at time, delay and current iteration
+
+Methods
+- set jitter function: allow user to override jitter function 
+
+constructor
+
+- `retry = new Retry([5, 10, 15, 20, ...])`
+- `retry.do(cb)`
 
 ## Consequences
 
