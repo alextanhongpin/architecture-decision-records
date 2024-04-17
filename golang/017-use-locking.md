@@ -39,3 +39,13 @@ Using Redis for distributed locking will have the following consequences:
 ## Next Steps
 
 We will need to implement the Redis locking mechanism in our system. We will also need to test the mechanism to ensure that it is working correctly.
+
+
+### Methods
+
+- `lock.lock(ctx, key, lock duration)` returns a new lock instance that can be terminated early as well as extended
+- lock.do, similar to above but accepts a callback and holds the lock until the callback completes
+- any attempt to extend/release the lock when it expires will return ErrLockReleased
+
+behaviour
+- by default, lock will wait until the lock is acquired. to prevent it from waiting indefinitely, set a context cancellation or NOWAIT option
