@@ -125,3 +125,8 @@ constructor
 
 
 The retry timeout becomes more predictable.
+
+
+## References
+
+- How AWS approach this https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
