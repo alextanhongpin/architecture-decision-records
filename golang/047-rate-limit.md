@@ -50,6 +50,14 @@ However, the issue happens when rounding the keys all to the same period. All re
 
 This means we can no longer use the basic strategy to set and expire the key anymore. We need to store both the expiration and count in the value. We can use redis pexpiretime.
 
+### Leaky Bucket vs Token Bucket
+
+Use leaky bucket if you want to perform an operation at a fixed interval, e.g running the scraper every 1 minute. This functionality can be replaced with a cron, so its not worth building.
+
+Token bucket is more interesting, it is similar to leaky bucket, but you can also allow a burst of requests.
+
+For limiting APIs, token bucket or fixed window is a good option.
+
 ## Decision
 
 
