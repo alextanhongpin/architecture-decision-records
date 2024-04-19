@@ -58,6 +58,31 @@ Token bucket is more interesting, it is similar to leaky bucket, but you can als
 
 For limiting APIs, token bucket or fixed window is a good option.
 
+
+### Token Bucket Strategy
+
+Say you have a policy of 5 req per sec.
+
+You can first break the timeline into 5 parts, each with an interval of 200ms.
+
+```
+200, 400, 600, 800, 1000
+```
+
+Then given the current time, find the current position:
+
+```
+now = 485ms
+mod = 485 - 485%interval
+mod = 400
+```
+
+Check if that checkpoint is hit, else save and allow.
+
+For burst, it is much easier. We dont need to care about the interval, just count.
+
+
+
 ## Decision
 
 
