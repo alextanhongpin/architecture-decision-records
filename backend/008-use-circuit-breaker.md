@@ -72,3 +72,7 @@ When writing, we can also lock the process so only one write happens at the time
 
 
 Another alternative is to use alertmanager from prometheus, and sends a webhook after the query condition is hit, e.g. failure rate exceeds 90% for 1 minute. We can also increment the sleep exponentially for every webhook we received, which will expire after a while. When it recovers, then the state can be reset.
+
+Additionally, since the evaluation is done every interval, we can batch the errors count in-memory and publish it periodically instead.
+
+We can just use prometheus and also use gauge to indicate the circuit is broken. Everytime an error circuit unavailable due to circuit breaker error occur, we can just measure it.
