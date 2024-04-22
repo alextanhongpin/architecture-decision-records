@@ -101,3 +101,22 @@ extend(key, every)
 unlock(key)
 ```
 
+### Metrics
+
+- lock hit: number of successful locks acquired
+- lock miss: the number of errors in conflicting lock
+
+What can we get from this?
+
+- zero lock hit: obviously very bad
+- zero lock miss: is the lock even needed
+- low lock miss, a good number of concurrency issue avoided
+- high lock miss: super concurrent, are there any ways to synchronize this
+
+the lock hit ratio is lock hit divided by sum of lock hit and lock miss.
+
+The more interesting question would be, are there any concurrent operations after implementing the lock?
+
+How can we test it?
+
+We can generate n number of concurrent actions, and fire it at the same time. The action will require sending the timestamps. We can measure the timestamps and see if the gap is consistent with the refresh lock time. If not, it means there is a possibility of a race condition.
