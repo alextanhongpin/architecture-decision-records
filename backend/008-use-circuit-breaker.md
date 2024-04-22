@@ -95,3 +95,29 @@ We can instead just gather the circuitbreaker data locally, but then set the sta
 7. we can increment the counter in sliding log too, for every timeout we have. we can use this to exponentially increase the timeout
 
 with this implementation, we dont care about the complicated state transition.
+
+
+```
+remote state = get remote state
+if local state neq remote state then
+  update local state to remote state
+  if remote state is open
+    set timeout to ttl open
+  else if remote state is closed
+    reset counter
+  end
+end
+
+if open then
+  return unavailable
+end
+
+if closed then
+  err = work()
+  if err then increment count end
+  if count >= threshold then
+    acquire lock
+    setnx key open expiry
+  end
+end
+```
