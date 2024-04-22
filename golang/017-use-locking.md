@@ -49,3 +49,55 @@ We will need to implement the Redis locking mechanism in our system. We will als
 
 behaviour
 - by default, lock will wait until the lock is acquired. to prevent it from waiting indefinitely, set a context cancellation or NOWAIT option
+
+### Design 
+
+How do we design a distributed lock? The example below assumes the implementation using a **single** redis node. For multiple nodes implementation, check out redlock algorithm. The difference is that in single node implementation, we can guarantee the lock will only be held by a single client.
+
+Let's start with a naive implementation. Below is the pseudo code:
+
+
+```
+lock(key)
+work()
+unlock(key)
+```
+
+Quite simple, except there is a few issue. If the server crash before the unlock is called, the key is locked forever.
+
+We can fix it by adding ttl to the key:
+
+```
+lock(key, ttl)
+work()
+unlock(key)
+```
+
+However, now we introduced a bug. The work may take longer than the ttl, causing the key to expire, and another thread may acquire the lock.
+
+We need to periodically refresh the lock:
+
+```
+lock(key, ttl)
+refresh(key, every)
+work()
+extend(key, every)
+unlock(key)
+```
+
+We now have three failure points
+- the refresh failed for some reason, we need to cancel the work done if it is still in progress
+- the work fails, we need to cancel the refresh
+- the work completes, close to the time the key is expiring. We try adding an extend after the work completes, but the lock may expired already
+
+the first two just requires concurrency synchronization. for the last one, we need to add a timeout for the work to ensure it completes before the end of the refresh duration
+
+
+```
+lock(key, ttl)
+refresh(key, every, timeout)
+work(timeout-buffer)
+extend(key, every)
+unlock(key)
+```
+
