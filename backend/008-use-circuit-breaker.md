@@ -76,3 +76,22 @@ Another alternative is to use alertmanager from prometheus, and sends a webhook 
 Additionally, since the evaluation is done every interval, we can batch the errors count in-memory and publish it periodically instead.
 
 We can just use prometheus and also use gauge to indicate the circuit is broken. Everytime an error circuit unavailable due to circuit breaker error occur, we can just measure it.
+
+### Leader style circuit breaker
+
+Is there a need to complicate process and collect the aggregate counts to decide if a circuit breaker should be open?
+
+Nope, if a system fails, the error counts will already accumulate on every instance. We don't need to wait for the aggregate result.
+
+We can instead just gather the circuitbreaker data locally, but then set the state to redis. For example, the flow now becomes
+
+
+1. check the local state, either open or closed. return if open and timeout haven't expire 
+2. if expire, check redis store dor circuitbreaker state. It can be either open or nil, representing the close state after the timeout expires
+3. if open, sync the state locally and set the timeout
+4. in other words, if the state mismatch, update the local state to follow the remote state
+5. if closed, just increment the counter
+6. if threshold acquired, acquire a lock, e.g. setnx key that expires in the open period.
+7. we can increment the counter in sliding log too, for every timeout we have. we can use this to exponentially increase the timeout
+
+with this implementation, we dont care about the complicated state transition.
