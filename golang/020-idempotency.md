@@ -136,7 +136,19 @@ Single operation, bounded by time
 - got cached response
 
 
-  
+  ### Metrics
+
+
+  How do we measure the success of the idempotency operations?
+
+Again, we can measure the idempotency hit and miss to understand how racy is the operation.
+The ratio of hit should be high, to indicate that the data is always retrieved from the cache. If the count is low, it means it is just being saved once and not used much.
+
+How do we test the success of this operation?
+
+We can generate n requests for the same key, which contains duplicate and different parameters. We can then trigger a save to the database. By right, if it is idempotent, only one operation will save to the database. We can set a unique constraints in the sqlitedb to panic if an error occurs. We can simulate error saving to db.
+
+We can do chaos testing with redis to simulate errors, to see the impact of failing redis to the save operations too.
 
 
 ### Articles
