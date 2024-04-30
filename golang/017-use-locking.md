@@ -101,6 +101,12 @@ extend(key, every)
 unlock(key)
 ```
 
+There is still an potential error. When the redis instamce failed, the token might not be refreshed and expires. 
+
+Instead of expiring the token, we persist it indefinitely, but check if the last refreshed at is within a certain interval, e.g 5 mins. Then we run a cron to extend it periodically. This is safer sibce the data will never be deleted during the process.
+
+
+
 ### Metrics
 
 - lock hit: number of successful locks acquired
