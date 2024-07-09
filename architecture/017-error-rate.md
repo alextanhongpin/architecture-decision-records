@@ -39,3 +39,7 @@ func count(last time.Time, n float64) float64 {
 	return n
 }
 ```
+
+- instead of using distributed cache, you can use sqlite or even in-memory, especially if the metrics isn't tied to revenue
+- most of the ideas behind rate limiting is to just prevent resource abuse, so as long as it doesn't bring down an instance, it is fine if the user exceeds the limits
+- alternatively, when the limit is reached, we can just increment a counter, and then check how many times the counter is triggered
