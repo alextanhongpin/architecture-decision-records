@@ -109,3 +109,13 @@ if ttl > 0 then return err unavailable end
     setnx key random expiry
   end
 ```
+
+
+## Sync nodes
+
+When working with distributed circuit breaker, we don't need to sync the counts between each nodes. Instead, if one node fails, we can just publish the changes to all nodes.
+
+When starting the circuit breakers, each node will subscribe to a channel. When one of the node fails, we just publish the state change.
+Then each node will keep track and set the state to open, and handle recovery by itself.
+
+This reduces number of execution drastically.
