@@ -119,3 +119,12 @@ When starting the circuit breakers, each node will subscribe to a channel. When 
 Then each node will keep track and set the state to open, and handle recovery by itself.
 
 This reduces number of execution drastically.
+
+
+## Timeout and error weights
+
+When calculating error rate, we usually treat each error as 1 count.
+
+However, in practice, errors should be treated differently. E.g, a 5xx errors might indicate that the service is already down, and so we want the circuitbreaker to trip faster instead of waiting for it to reach the `failureThreshold`.
+
+Another possible scenario is errors due to timeout. E.g. we might sample errors at per minute rate. If we have a service that responds with error after timeout of 30s, the circuitbreaker might already have reset before we hit the `failureThreshold`. Thus, the circuitbreaker will never open. Instead, we should assign more weight to timeout errors.
