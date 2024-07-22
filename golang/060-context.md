@@ -54,3 +54,26 @@ func main() {
 	}
 }
 ```
+
+## Context without cancel
+
+Most of the time, we have a task that shares context when performing cleanup:
+
+```go
+func task(ctx context.Context) {
+  defer unlock(ctx)
+  lock(ctx)
+  // do stuff
+}
+```
+
+Notice the issue above? When the context is cancelled, the unlock will not be called. To ensure the `unlock` is called, we need a different context from the one passed to `lock`. This can be easily done with `context.WithoutCancel`:
+
+
+```go
+func task(ctx context.Context) {
+  defer unlock(context.WithoutCancel(ctx))
+  lock(ctx)
+  // do stuff
+}
+```
