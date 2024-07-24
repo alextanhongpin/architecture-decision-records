@@ -128,3 +128,36 @@ When calculating error rate, we usually treat each error as 1 count.
 However, in practice, errors should be treated differently. E.g, a 5xx errors might indicate that the service is already down, and so we want the circuitbreaker to trip faster instead of waiting for it to reach the `failureThreshold`.
 
 Another possible scenario is errors due to timeout. E.g. we might sample errors at per minute rate. If we have a service that responds with error after timeout of 30s, the circuitbreaker might already have reset before we hit the `failureThreshold`. Thus, the circuitbreaker will never open. Instead, we should assign more weight to timeout errors.
+
+## Slow call 
+
+Slow call are not timeout errors. Usually slow calls are an early indicator of services failing, so this should be penalize too. We can add the slow call score as part of the failure score, but with a different weight.
+
+For example, we can set the score dynamically based on the duration:
+
+```
+every 5s score increases by 1
+5s = 1 token
+60s = 12 tokens
+```
+
+## Error budget
+
+We follow the SRE guide and use error budgets instead of treating each failure or success as a count.
+
+In other words, when defining thresholds, we use the term budget.
+
+So for example the failure threhold has a budget of 100 per minute.
+
+- a slow call consumes one token every 5s
+- a normal error consumes one token (similar to count)
+- an internal server error consumes 10 token (since its a known error)
+- a timeout error consumes 10 token (the service is not responding anyway) plus the number of toekns from the slow call
+
+If the tokens consumed exceeds the budget, the circuit becomes open.
+
+```
+tokens = errorToken(error) + durationToken(duration)
+tokens <= budget
+```
+
