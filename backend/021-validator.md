@@ -42,3 +42,35 @@ name: string
 cond: func(t typ) bool
 error: the error
 ```
+
+all we need is an expression parser:
+
+```
+// return error, because bool is binary. There can be multiple error
+"min": func stringParser(expr string) func(val string) error {
+  return func(s string) error {
+   
+  }
+}
+
+validator("email")
+or
+func (s string) error {
+  // override error message
+  return validator("error")(s)
+}
+```
+
+```
+p := strparser()
+p.Add(key, fn)
+compile(p, expr) {
+ exprs := expr.split(',')
+ for expr in exprs {
+   fns.push(p.Parse(expr))
+ }
+ return fns
+}
+
+validate(val, fns...)
+```
