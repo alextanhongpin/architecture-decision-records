@@ -34,3 +34,11 @@ func minValidator(type, val, params string) error {
   // but this is not compile time safe
 }
 ```
+
+To create a very generic one, we just need to supply 
+
+```
+name: string
+cond: func(t typ) bool
+error: the error
+```
