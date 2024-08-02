@@ -121,6 +121,25 @@ constructor
 - `retry = new Retry([5, 10, 15, 20, ...])`
 - `retry.do(cb)`
 
+## Retry with iterator
+
+the retry logic is dead simple
+
+- retry n times
+- each time, the duration is exponential
+- if the error is nil, return
+- if the error is abortable, abort, e.g 429 too many requests
+- otherwise loop until max attemptsreached
+
+
+what to measure
+- number of retries
+- duration taken
+- errors kind
+What to mnimize
+- number of retries should be short, butthe duration between each retries should be long
+- 
+
 ## Consequences
 
 
