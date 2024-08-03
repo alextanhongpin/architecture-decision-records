@@ -81,7 +81,24 @@ Check if that checkpoint is hit, else save and allow.
 
 For burst, it is much easier. We dont need to care about the interval, just count.
 
+## GCRA
 
+Genetic cell rate algorithm.
+
+## Alternative
+
+given a period and number of requests, find the next period for the current time.
+
+Increment the duration now per interval. If it exceeds the max, stop.
+E.g.
+```
+period of 1s
+number of request 10
+100ms per request
+
+current 0.5s, next is 1s
+increment to 0.6, if exceeds 1s, then blocked 
+```
 
 ## Decision
 
