@@ -58,6 +58,18 @@ In this scenario, it may be better to
 - wrap the `Do` method that overwrites the behaviour
 
 
+### Naming options
+
+We use `Options` for the default options, and `Option` for the functional option.
+
+```go
+type Options struct {}
+
+type Option func(o *Options) 
+```
+
+It makes sense because the struct contains all options, while functional option modifies one option only.
+
 ## Function vs structs
 
 When do we decide when to use function vs struct? For the retry, we could have use function too:
