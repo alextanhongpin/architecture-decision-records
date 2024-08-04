@@ -105,7 +105,17 @@ There is still an potential error. When the redis instamce failed, the token mig
 
 Instead of expiring the token, we persist it indefinitely, but check if the last refreshed at is within a certain interval, e.g 5 mins. Then we run a cron to extend it periodically. This is safer sibce the data will never be deleted during the process.
 
+### Alternative
 
+How to handle locking between different client?
+
+Let's say we have `Foo` that obtains a lock. Another client `Bar` attempts to acquire the lock too. We have several possible alternative for `Bar`.
+
+1. fail fast, `Bar` cannot obtain the lock. Let the client decide whether to retry or not
+2. retry every interval until it can obtain
+3. retry every interval until timeout
+4. retry every interval until context canceled
+5. retry n times until it can obtain, fail otherwise
 
 ### Metrics
 
