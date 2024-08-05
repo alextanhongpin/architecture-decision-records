@@ -117,6 +117,21 @@ Let's say we have `Foo` that obtains a lock. Another client `Bar` attempts to ac
 4. retry every interval until context canceled
 5. retry n times until it can obtain, fail otherwise
 
+### Timeouts
+
+When locking, there are several timeouts involved
+
+- normal context timeout/cancellation
+- initial lock timeout
+- refresh lock timeout, e.g. 0.9 times the lock timeout
+- client wait timeout
+
+For example, when the client first request a lock, it is locked for 10s. Then every 9s, the lock will be extended for another 10s. The reason to keep the lock short is if the process fails, then another process should be able to take over the operation.
+
+The refresh lock is necessary to avoid the lock from expiring before the process completes. The refresh needs to be canceled but without errors once the process that holds the lock completes. If the refresh fails, the process should also terminate and the lock released.
+
+The client that waits for the lock needs to periodically try to obtain the lock.
+
 ### Metrics
 
 - lock hit: number of successful locks acquired
