@@ -72,5 +72,11 @@ e.g. rate limit error also serves as values.
 
 ### Testing errors
 
+### Errors data
+
+any attempt to use generic datatype will not end well.
+
+Use either a fixed error data structure or more generic ones like a dictionary to store error context.
+
 
 ## Consequences
