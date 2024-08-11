@@ -39,3 +39,28 @@ $$fn(x) = -\frac{1}{10000}x^{3\ }+\ 100$$
 Where $x$ is the load percentage. The output is the priority to drop.
 
 It starts from 0 (highest priority) to 100 (lowest priority). When the load is 0, the priority is 100. When the load is 100%, the priority is 0 (all requests).
+
+
+## Rate Limiting 
+
+Rate limit is one of the easiest way to regulate flow.
+
+
+## Throttling
+
+You can also throttle the request
+
+## Active queue management 
+
+CoDel (Controlled Delay) can be used for load shedding.
+
+## Metrics
+
+Some useful metrics 
+- in flight request count
+- latency
+- inflow rate
+- outflow rate
+- pending queue rate
+
+How can we balance the input and output tatr
