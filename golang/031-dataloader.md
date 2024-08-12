@@ -125,7 +125,17 @@ func main() {
 }
 ```
 
+## Plain cache
 
+When the background job is cancelled, there wont be any batching.
+
+As a fallback, the dataloader should behave like a regular cache and get/set should work too.
+
+## Manual flush
+
+Dataloader can triggered to fetch the keys manually by calling the `Flush` method, instead of waiting for the batch timeout.
+
+This is usually at the end of a for loop, once we know there are no further keys to fetch.
 
 
 
