@@ -48,5 +48,15 @@ Jsondump will only compare if
 - already exists a snapshot
 - which means first invocation needs to be executed twice
 
-- register different options for different types
-- raw output, snapshot output
+## Type Registry 
+
+instead of creating multiple dumper for each type, or using struct tags to control the fields options, it is better to define a global type registry.
+
+The dumper can then accept the registry as an option.
+
+```
+reg := jsondump.NewRegistry()
+reg.Register(type, opts)
+
+jsondump.Dump(t, v, jsondump.WithRegistry(reg))
+```
