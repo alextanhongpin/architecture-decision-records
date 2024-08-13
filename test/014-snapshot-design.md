@@ -60,3 +60,45 @@ reg.Register(type, opts)
 
 jsondump.Dump(t, v, jsondump.WithRegistry(reg))
 ```
+
+## Snapshot
+
+The snapshot function should be reusable, and accepts the reader and writer interface.
+
+
+```go
+func Snapshot(r io.Reader, w io.Writer, v any, opts ...Option) error {
+  b, err := json.MarshalIndent(v, "", " ")
+  if err != nil {
+    return err
+  }
+  // process b
+  _, err = w.Write(b)
+  if err != nil {
+    return err
+  }
+  s, err := io.ReadAll(r)
+  if err != nil {
+    return err
+  }
+  return diff(s, b, opts...)
+}
+```
+
+Our dump function then handles the creation of the file, and also additionally writes the output:
+
+```go
+func Dump(t *testing.T, v any, opts Options) {
+  f := NewFile(t.Name())
+  f.Overwrite = opts.Overwrite
+
+  if opts.Out {
+    opts.Out.Write(v)
+  }
+  return Snapshot(f, f, v, opts)
+}
+```
+
+## Marshal/Unmarshaling
+
+We do not really need to know the exact type, just using any will be enough. The actual type is up to the client.
