@@ -102,3 +102,39 @@ func Dump(t *testing.T, v any, opts Options) {
 ## Marshal/Unmarshaling
 
 We do not really need to know the exact type, just using any will be enough. The actual type is up to the client.
+
+We can define an encoder interface that marshal/unmarshal to any.
+
+```go
+type encoder interface {
+  Marshal(v any) ([]byte, error)
+  Unmarshal([]byte) (any, error)
+}
+```
+
+So we update the function definition:
+
+
+```go
+func Snapshot(r io.Reader, w io.Writer, enc encoder, v any, opts ...Option) error {
+  b, err := enc.Marshal(v)
+  if err != nil {
+    return err
+  }
+  // process b
+  // transform(b)
+  n, err = w.Write(b)
+  if err != nil {
+    return err
+  }
+  if n == 0 {
+    return nil
+  }
+  s, err := io.ReadAll(r)
+  if err != nil {
+    return err
+  }
+  return diff(s, b, opts...)
+}
+```
+
