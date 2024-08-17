@@ -161,3 +161,5 @@ tokens = errorToken(error) + durationToken(duration)
 tokens <= budget
 ```
 
+https://brooker.co.za/blog/2022/02/16/circuit-breakers.html
+
