@@ -54,6 +54,18 @@ Other way of segmenting includes allowing only paid users to make requests first
 
 If thundering herd is caused by retries, we can signal the client never to retry again. This however is not easy to implement or is failure prone. 
 
+For exapmple, we can signal only certain status code to be retryable:
+
+- 408 Request Timeout
+- 425 Too Early
+- 429 Too Many Requests (don't retry)
+- 500 Internal Server Error (don't retry too?...)
+- 502 Bad Gateway
+- 503 Service Unavailable
+- 504 Gateway Timeout
+
+When the server is down, we may signal the status 429 to selected clients upon restarting to terminate the retries permanently.
+
 ## Rate Limiting 
 
 Rate limit is one of the easiest way to regulate flow.
