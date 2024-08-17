@@ -15,4 +15,7 @@ However, there can ve scenarios where multiple requests are made before the cach
 
 For such scenario, we may want to wait for the cache to be populated first instead of repeatedly hitting the database and setting the values.
 
+## Batching
 
+
+https://brooker.co.za/blog/2021/08/27/caches.html
