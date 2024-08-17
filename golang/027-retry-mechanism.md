@@ -145,6 +145,11 @@ https://brooker.co.za/blog/2022/02/28/retries.html
 
 ### Retry Throttler
 
+
+Read the RFC here:
+https://github.com/grpc/proposal/blob/master/A6-client-retries.md
+
+And the implementation here: 
 https://github.com/grpc/grpc-go/blob/f8d98a477c22a51320d5aee8ec156cbfa60d4436/clientconn.go#L1589
 
 ## Consequences
