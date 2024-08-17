@@ -40,6 +40,15 @@ Where $x$ is the load percentage. The output is the priority to drop.
 
 It starts from 0 (highest priority) to 100 (lowest priority). When the load is 0, the priority is 100. When the load is 100%, the priority is 0 (all requests).
 
+## Select Traffic
+
+We can also selectively allow only a subset of users to make requests when the load is too high.
+
+For example, we can hash the id of the users and get the modulo of 100. Then we can target the percentage of users to rollout to.
+
+We can gradually increase the load from 0 to 100% this way.
+
+Other way of segmenting includes allowing only paid users to make requests first, but this depends heavily on the domain (e.g. if all users must be paid, then it is pointless).
 
 ## Rate Limiting 
 
