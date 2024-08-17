@@ -152,6 +152,10 @@ https://github.com/grpc/proposal/blob/master/A6-client-retries.md
 And the implementation here: 
 https://github.com/grpc/grpc-go/blob/f8d98a477c22a51320d5aee8ec156cbfa60d4436/clientconn.go#L1589
 
+Implementation by Finagle:
+https://github.com/twitter/finagle/blob/develop/finagle-core/src/main/scala/com/twitter/finagle/service/RetryBudget.scala
+https://finagle.github.io/blog/2016/02/08/retry-budgets/
+
 ## Consequences
 
 
