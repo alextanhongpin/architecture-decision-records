@@ -50,6 +50,10 @@ We can gradually increase the load from 0 to 100% this way. This can be done in 
 
 Other way of segmenting includes allowing only paid users to make requests first, but this depends heavily on the domain (e.g. if all users must be paid, then it is pointless).
 
+## Stateful client
+
+If thundering herd is caused by retries, we can signal the client never to retry again. This however is not easy to implement or is failure prone. 
+
 ## Rate Limiting 
 
 Rate limit is one of the easiest way to regulate flow.
