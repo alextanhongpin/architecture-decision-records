@@ -138,7 +138,11 @@ what to measure
 - errors kind
 What to mnimize
 - number of retries should be short, butthe duration between each retries should be long
-- 
+
+## Retry complexity
+
+https://brooker.co.za/blog/2022/02/28/retries.html
+
 
 ## Consequences
 
