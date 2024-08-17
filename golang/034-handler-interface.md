@@ -122,6 +122,17 @@ Should context be passed as the first argument? Preferably, if there is a need t
 
 However, for stuff like tracing etc, it is arguably easier to decorate the function than to pass the context. To build reusable library, we do not want to couple the implementation of tracing to the package, unless it can be achieved using the standard library.
 
+### Service Pattern
+
+Instead of dealing with many different interface type, we should just stick to one, the `Service` pattern:
+
+```go
+type Service[Req, Res any]func(ctx context.Context, req Req) (Res, error)
+```
+
+We ensure that other library implementation fulfils this. Even if the implementer does not retunr any response, they should return just an empty type, e.g. ststus string.
+
+Should an interface be preferred over function? 
 
 ## Decisions
 
