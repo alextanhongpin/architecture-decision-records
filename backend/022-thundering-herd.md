@@ -46,7 +46,7 @@ We can also selectively allow only a subset of users to make requests when the l
 
 For example, we can hash the id of the users and get the modulo of 100. Then we can target the percentage of users to rollout to.
 
-We can gradually increase the load from 0 to 100% this way.
+We can gradually increase the load from 0 to 100% this way. This can be done in a gradual way, e,g ramping up traffic over 30s, similar like nginx slow start module https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/#:~:text=The%20server%20slow%E2%80%91start%20feature,be%20marked%20as%20failed%20again.&text=The%20time%20value%20(here%2C%2030,server%20to%20the%20full%20value.
 
 Other way of segmenting includes allowing only paid users to make requests first, but this depends heavily on the domain (e.g. if all users must be paid, then it is pointless).
 
