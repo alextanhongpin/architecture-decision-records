@@ -45,7 +45,18 @@ The request must match the target dump file request in order for the response to
 
 Otherwise `ErrRequestMismatch` will be returned.
 
-The returned type should be a httpclient.
+The returned type should be a httpclient. We should be modifying the http transport to compare and route the requests.
+
+Since the client can be called with multiple requests, we need to allow replaying multiple requests and perhaps in the same order as it is loaded. Calling a request will consume it, and will no longer be able to return the response again.
+
+Thr idea above points to sequential activation. So the client
+- needs to know how many requests the usecase will call
+- what is the expected request for each invocation
+- useful for asserting each and every step in a test
+
+An alternative is to just do a pattern match against the current request, without removing them once the request has been made. If there are multiple matching request, they follow the order.
+
+
 
 ## Consequences
 
