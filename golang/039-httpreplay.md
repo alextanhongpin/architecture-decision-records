@@ -26,6 +26,26 @@ The function should only have two options:
 - filename to write to
 - overwrite the existing dump
 
+### Implementation
+
+Similar to `httpdump`, we can first dump the request/response pair to a file. The handler will be called at most once. If the file already exists, the handler will no longer be called. Alternatively, the file can be created manually. The advantage is we can just specify the files required and simulate a lot of different responses.
+
+Unfortunately the downside is, if the API contract changes, there will be a drift between the actual and expected request/response.
+
+Therefore `httpreplay` is not a replacement for `httpdump`. However, it can complement `httpdump` and make fewer requests as well as removing dependencies. We can for example run the dump once, but then reused it multiple times in other tests.
+
+The API may look like this:
+
+```go
+client := httpreplay.Load(filepath)
+client.Do(req)
+```
+
+The request must match the target dump file request in order for the response to be returned.
+
+Otherwise `ErrRequestMismatch` will be returned.
+
+The returned type should be a httpclient.
 
 ## Consequences
 
