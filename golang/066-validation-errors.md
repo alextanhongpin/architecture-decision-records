@@ -91,6 +91,13 @@ func Assert(cond bool, name, msg string) *Assertion {
 
 ## Improvement
 
+There are only three required methods
+- assert
+- required
+- optional (chain)
+
+There is no need to create a generic handler for all different types, because it will coerce to boolean.
+
 ```go
 // You can edit this code!
 // Click here and start typing.
