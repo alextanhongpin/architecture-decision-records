@@ -47,3 +47,8 @@ For some dependencies like Clock, you can just make the field public so that it 
 ## Type dependent options
 
 When the options are type dependent, which means they differ based on the type passed in, we can use reflect type to store the options by types mapping.
+
+
+## Naming
+
+Use Config for the root, and Option for the modifier
