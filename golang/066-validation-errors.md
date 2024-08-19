@@ -88,3 +88,58 @@ func Assert(cond bool, name, msg string) *Assertion {
 	}
 }
 ```
+
+## Improvement
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import "fmt"
+
+func main() {
+	var name string
+	var age int
+	var cars int
+	res := Validate(
+		Required(name, "name"),
+		Required(age, "age"),
+		Assert(age >= 13, "age", "must be 13 and above"),
+		Optional(
+			cars, "cars", Assert(cars > 0, "cars", "must be positive"),
+		),
+	)
+	fmt.Println(res)
+}
+
+func Validate(assertions ...map[string][]string) map[string][]string {
+	m := make(map[string][]string)
+	for _, kvs := range assertions {
+		for k, vs := range kvs {
+			m[k] = append(m[k], vs...)
+		}
+	}
+	return m
+}
+
+func Assert(cond bool, name, msg string) map[string][]string {
+	if cond {
+		return nil
+	}
+	return map[string][]string{name: []string{msg}}
+}
+
+func Required[T comparable](value T, name string) map[string][]string {
+	var v T
+	return Assert(value != v, name, "required")
+}
+
+func Optional[T comparable](value T, name string, assertions ...map[string][]string) map[string][]string {
+	var v T
+	if value == v {
+		return nil
+	}
+	return Validate(assertions...)
+}
+```
