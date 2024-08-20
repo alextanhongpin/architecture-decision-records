@@ -177,6 +177,51 @@ Another possibility is reversal. After successful flow, we may still want to rev
 
 This is commonly known as saga.
 
+## Locking
+
+State transition should only be done by a single process. For this, we need to either lock the entity in-transition or add check to prevent modifying the state of the entity in the database.
+
+The former is necessary if we care about idempotency of the operation (exactly omce), such as payments. The latter is acceptable when there are no harmful side-effects like making a campaign inactive as opposed to handling refund.
+
+The check can be as simple as checking the version of the entity being modified or the prev/next status or both.
+
+The pseudocode is as follow
+
+```
+func transition(from, to)
+
+begin
+select...for update nowait (where tatus = from)
+check valid transition
+// do stuff
+update ... set status = to where status = from and id = some_id
+commit
+```
+
+## Status vs steps
+
+Status transition vs steps trafnsition seems to overlap, and can be confusing when misunderstood.
+
+First, let's define state as the current condition of the system.
+
+A system's state can move from one to another, and that is usually through interactions with various components. We define the steps as an operation that cause a change od status in a system.
+
+A workflow comprised of a series of steps that is executed in a particular order. In a more complex system, the steps can be undo (saga). Each steps can have it's own internal status too (not started, pending, success and failed) and usually the sum of these states define the state of the system.
+
+Usually a timestamp is used to mark that the step is completed for strictly sync task. For async task where the step csn be waiting for the trigger, e.g message queue.
+It is more useful than a boolean because of the additional information it provides.
+
+Asynchronous task adds complexity, because now within a step, we have a series of mini steps to take before completing the steps. And there is a lot to handle
+- exactly once only
+- idempotency
+- failure handling
+- retries
+- change in state while processing (aborted, or cancelled by admin)
+
+
+
+
+
 ## Consequences
 
 - a standardised approach on dealing with idempotency and state transitions
