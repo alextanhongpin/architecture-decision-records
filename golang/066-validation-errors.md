@@ -150,3 +150,25 @@ func Optional[T comparable](value T, name string, assertions ...map[string][]str
 	return Validate(assertions...)
 }
 ```
+
+## Design
+
+After several attempts, we can simplify the design even further.
+
+The output is simply a validation errors object, which can be one of the following
+
+- nested hierachy: a flat object where each field is a string, an array of string, or an array of validation errors
+- just a single object, and the key names are flattened, so it can be `nested.field` or `array[0].field`
+
+Either one is okay, it depends on how the client handles it.
+
+Every field will begin with a validation of
+- filter(required(value, assertions))
+- filter(optional(value, assertions))
+- filter(assertions)
+
+The assertions can be nested inside the `required` or `optional` validator. They will be applied/not applied based on the first value. 
+
+The `filter` is to remove empty values.
+
+The field names etc and the structure (object/array) should be decided by the end user. The validations are only meant to retunr string.
