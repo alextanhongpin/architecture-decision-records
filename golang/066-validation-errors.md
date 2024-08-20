@@ -171,4 +171,20 @@ The assertions can be nested inside the `required` or `optional` validator. They
 
 The `filter` is to remove empty values.
 
-The field names etc and the structure (object/array) should be decided by the end user. The validations are only meant to retunr string.
+The field names etc and the structure (object/array) should be decided by the end user. The validations are only meant to return string.
+
+Why do we reject returning a dictionary object? Because tying the field and validation means we have to duplicate the code for different fields with same logic.
+
+Why do we choose to return just a single concatenated error message instead of an array? Because it is simply readable to just have a key-value string.
+
+Why do we choose to return a flattened nested key object instead of nested objects/arrays?
+
+Because when we return the objects in an array, some objects may be empty at certain position, leaving a gap.
+
+Instead, it will be easier to just return the index with the errors:
+
+```
+array[99].field: "required"
+```
+
+
