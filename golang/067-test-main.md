@@ -16,4 +16,20 @@ func TestMain(m *testing.M) {
   stop()
   os.Exit(code)
 }
+
+func TestSth(t *testing.T) {
+  // Get a global DSN
+  dsn := pgtest.DSN()
+  // Get a normal db connection.
+  db := pgtest.DB(t)
+  // Get a transaction db connection
+  // Automatically rolls back changes.
+  tx := pgtest.Tx(t)
+
+  // Sometimes we want to work on a separate db instance.
+  p := pgtest.New(t, pgtest.Image("postgres:17"), pgtest.Hook(migrate))
+  dsn := p.DSN()
+  db := p.DB()
+  tx := p Tx()
+}
 ```
