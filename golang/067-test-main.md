@@ -33,3 +33,37 @@ func TestSth(t *testing.T) {
   tx := p Tx()
 }
 ```
+
+## Design 
+
+```go
+
+var client *Client
+
+func Init(opts ...Option) func() {
+  once.Do(func() {
+    client = NewClient()
+  })
+  return client.Stop
+}
+
+func DB(t *testing.T) {}
+func Tx(t *testing.T) {}
+
+type Client struct {
+  dsn string
+}
+
+func (c *Client) init() {
+  c.dsn = ...
+}
+
+func (c *Client) DB() {
+  return sql.Open(c.dsn)
+}
+func (c *Client) Tx() {
+  // once
+  txdb.Register("txdb", "postgres", c.dsn)
+  return sql.Open("txdb", uuid.New().String())
+}
+```
