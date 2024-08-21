@@ -219,7 +219,25 @@ Asynchronous task adds complexity, because now within a step, we have a series o
 - change in state while processing (aborted, or cancelled by admin)
 
 
+### Bitwise for sequential steps
 
+We can use bitwise operators for sequential steps.
+
+The limitation is it is limited to 32 steps.
+
+But we can easily use this to check if all the steps are executed linearly.
+
+
+```
+# mark both steps as completed
+a = step1 | step2
+
+# check has step 1
+a&step1 == step1
+
+# check we have completed n steps
+a == 1<<(n+1)-1
+```
 
 
 ## Consequences
