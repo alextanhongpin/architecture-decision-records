@@ -240,6 +240,34 @@ a == 1<<(n+1)-1
 ```
 
 
+## Status patterns
+
+This three status goes a long way:
+
+```
+pending, success, failed
+```
+
+Usually for async task, we also have the `not_started` status:
+
+```
+not_started, pending, success, failed
+```
+
+Any other status can be categorized as `unknown`. Sometimes the status can also be placed under `limbo`, if we choose not to handle them.
+
+For a workflow, we can have a series of steps with the statuses above. The status of the workflow depends on the individual statuses. There is also some logic we must follow
+- a step can only be started after the previous step completed
+- each step must be completed in sequence
+- a step can fail, or not failed
+- if a step failed, it can either retry, or choose to rollback all previous steps before, only if they can be rollback
+- steps can be sync or async. Async steps usually wait listens to external events to move the state
+- the overall workflow can be paused and resumed. This happens at workflow level, not steps
+
+With the rules above in mind, we can design:
+- forward only transaction (all steps must succeed), or can be compensated
+- sync/async step
+
 ## Consequences
 
 - a standardised approach on dealing with idempotency and state transitions
