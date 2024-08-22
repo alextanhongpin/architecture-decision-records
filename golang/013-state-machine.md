@@ -248,10 +248,10 @@ This three status goes a long way:
 pending, success, failed
 ```
 
-Usually for async task, we also have the `not_started` status:
+Usually for async task, we also have the `idle` status:
 
 ```
-not_started, pending, success, failed
+not_started/idle, pending, success, failed
 ```
 
 Any other status can be categorized as `unknown`. Sometimes the status can also be placed under `limbo`, if we choose not to handle them.
