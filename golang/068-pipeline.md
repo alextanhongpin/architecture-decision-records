@@ -12,3 +12,8 @@ Concurrent pipeline for handling streaming data
 - handling error
 - inflight request
 - showing progress
+
+
+```
+gen | fork(10) | task1 | task2 | branch | error:retry success:print
+```
