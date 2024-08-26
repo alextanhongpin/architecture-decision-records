@@ -205,27 +205,34 @@ func main() {
 	fmt.Println("Hello, 世界")
 }
 
-type BatchAction interface {
+type BatchStopperCloser interface {
 	Stop()
 	Flush()
 }
 
-type batchAction struct {
-	stop  func()
-	flush func()
+type batchFunc[T comparable] struct {
+	limit  int
+	period time.Duration
+	fn     func([]T)
+	in     chan T
+	cancel func()
+	wg     sync.WaitGroup
+	flush  chan struct{}
 }
 
-func (b *batchAction) Stop() {
-	b.stop()
-}
-func (b *batchAction) Flush() {
-	b.flush()
+func newBatchFunc[T comparable](limit int, period time.Duration, in chan T, fn func([]T)) *batchFunc[T] {
+	return &batchFunc[T]{
+		flush:  make(chan struct{}),
+		limit:  limit,
+		period: period,
+		fn:     fn,
+		in:     in,
+	}
 }
 
-func BatchFunc[T comparable](n int, period time.Duration, in chan T, fn func([]T)) BatchAction {
+func (b *batchFunc[T]) init() {
 	cache := make(map[T]struct{})
-	f := make(chan struct{})
-	t := time.NewTicker(period)
+	t := time.NewTicker(b.period)
 	defer t.Stop()
 
 	flush := func() {
@@ -239,11 +246,12 @@ func BatchFunc[T comparable](n int, period time.Duration, in chan T, fn func([]T
 			return
 		}
 
-		fn(keys)
+		b.fn(keys)
 	}
 	defer flush()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	b.cancel = cancel
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -255,7 +263,7 @@ func BatchFunc[T comparable](n int, period time.Duration, in chan T, fn func([]T
 			select {
 			case <-ctx.Done():
 				return
-			case k, open := <-in:
+			case k, open := <-b.in:
 				if !open {
 					return
 				}
@@ -265,28 +273,32 @@ func BatchFunc[T comparable](n int, period time.Duration, in chan T, fn func([]T
 					continue
 				}
 				cache[k] = struct{}{}
-				t.Reset(period)
+				t.Reset(b.period)
 
-				if len(cache) >= n {
+				if len(cache) >= b.limit {
 					flush()
 				}
-			case <-f:
-				t.Reset(period)
+			case <-b.flush:
+				t.Reset(b.period)
 				flush()
 			case <-t.C:
 				flush()
 			}
 		}
 	}()
-	return &batchAction{
-		stop: func() {
+}
 
-			cancel()
-			wg.Wait()
-		},
-		flush: func() {
-			f <- struct{}{}
-		},
-	}
+func (b *batchFunc[T]) Stop() {
+	b.cancel()
+	b.wg.Wait()
+}
+func (b *batchFunc[T]) Flush() {
+	b.flush <- struct{}{}
+}
+
+func BatchFunc[T comparable](n int, period time.Duration, in chan T, fn func([]T)) BatchStopperCloser {
+	b := newBatchFunc[T](n, period, in, fn)
+	b.init()
+	return b
 }
 ```
