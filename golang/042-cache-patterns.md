@@ -20,3 +20,11 @@ Some useful or common implementation includes
 
 We keep the sets of keys that are streamed. After all the keys were uodated, wr just delete those not in the nrw list.
 - cache priority 
+
+
+## Cache penetration
+
+https://medium.com/@mena.meseha/3-major-problems-and-solutions-in-the-cache-world-155ecae41d4f
+https://www.alibabacloud.com/en/knowledge/developer1/detailed-explanation-caching-problems?_p_lc=1
+
+Use bloom filter, because attackers can use fake ids that will be cached if we set to `_nil_`.
