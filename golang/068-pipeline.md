@@ -175,3 +175,86 @@ func InFlightRequest[T any](n int, in chan T) chan T {
 	return ch
 }
 ```
+
+Batcher:
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+
+func main() {
+	ch := make(chan int)
+	go func() {
+		defer close(ch)
+		for i := range 20 {
+			ch <- i % 10
+		}
+	}()
+	cancel := Batch(3, time.Second, ch, func(vs []int) {
+		fmt.Println(vs)
+	})
+	time.Sleep(1 * time.Second)
+	cancel()
+	fmt.Println("Hello, 世界")
+}
+
+func Batch[T comparable](n int, period time.Duration, in chan T, fn func([]T)) func() {
+	cache := make(map[T]struct{})
+	t := time.NewTicker(period)
+	defer t.Stop()
+
+	flush := func() {
+		keys := make([]T, 0, len(cache))
+		for k := range cache {
+			keys = append(keys, k)
+		}
+		clear(cache)
+
+		fn(keys)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case k, open := <-in:
+				if !open {
+					return
+				}
+
+				_, ok := cache[k]
+				if ok {
+					continue
+				}
+				cache[k] = struct{}{}
+				t.Reset(period)
+
+				if len(cache) >= n {
+					flush()
+				}
+			case <-t.C:
+				flush()
+			}
+		}
+	}()
+
+	return func() {
+		cancel()
+		wg.Wait()
+	}
+}
+```
