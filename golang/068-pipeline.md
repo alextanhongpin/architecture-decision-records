@@ -1,16 +1,26 @@
 # Pipeline
 
-Concurrent pipeline for handling streaming data
+Concurrent pipeline for handling streaming data.
+
+Every func is a stage in a pipeline. We can categorize them into different functionalities.
+
+Each stage should have an `in` and `out` channel.
+
+Using two generic types to represent input output, because at most they are the same or the output is a result type with data and error.
+
 
 
 - handling timeout
 - handling context
-- running n workers
+- running n workers with single channel/semaphore/worker pool
+- fan out (multiple workers multiple channels)
+- fan in (multiple channels into single channel, multiplex)
 - scale up workers adaptive
 - circuit breaker
 - retry
 - handling error
 - inflight request
+- rate (throughput)
 - rate limit
 - throttle
 - showing progress
@@ -18,8 +28,23 @@ Concurrent pipeline for handling streaming data
 - debounce
 - idempotent
 - deduplicate
-- branch
+- cache/function cache/data loader
+- batch: instead or performing individual operations, batch them together and execute once. Can be deduplicated and cached too. we can also batch by time window aside from max items
+- branch/tee: sends the result into multiple channels
+- restarts
+- self-heal
+- try or abort
+- until: repeat an operation until it is no longer possible, e.g. cursor paginating the db
+- loop/forever: do sth forever
+- map
+- filter
+- reduce
+- take
+- repeat
+- buffer
 
+most of the above can have a variation of static values or func, though func is more flexible.
+Perhaps using sync oncefunc is better for static values.
 
 ```
 generator | fork(10) | task1 | task2 | branch | error:retry success:print
@@ -354,3 +379,11 @@ func Context(ctx context.Context, in chan any) chan any {
 	return out
 }
 ```
+
+
+### Buffer
+
+How do we deal with buffered channels? 
+
+- allow passing option, defaults to 0
+- create a stage to buffer the result, aka queue. This is probably more flexible and cleaner. 
