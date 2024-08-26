@@ -18,6 +18,7 @@ Concurrent pipeline for handling streaming data
 - debounce
 - idempotent
 - deduplicate
+- branch
 
 
 ```
@@ -66,3 +67,111 @@ fanout
 - idempotent
 - context
 
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+func main() {
+	start := time.Now()
+	ch := Generator(10)
+	ch = FanOutFunc(5, ch, func(i int) int {
+		time.Sleep(100 * time.Millisecond)
+		return i * 10
+	})
+	ch = RateLimit(10, time.Second, ch)
+	for v := range ch {
+		fmt.Println(v)
+	}
+	fmt.Println(time.Since(start))
+}
+
+func Generator(n int) chan int {
+	ch := make(chan int)
+
+	go func() {
+		defer close(ch)
+
+		for i := range n {
+			ch <- i
+		}
+	}()
+
+	return ch
+}
+
+func FanOutFunc[K, V any](n int, in chan K, fn func(K) V) chan V {
+	ch := make(chan V)
+
+	var wg sync.WaitGroup
+	wg.Add(n)
+
+	for range n {
+		go func() {
+			defer wg.Done()
+
+			for k := range in {
+				ch <- fn(k)
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	return ch
+}
+
+func RateLimit[T any](request int, period time.Duration, in chan T) chan T {
+	ch := make(chan T)
+	t := time.NewTicker(period / time.Duration(request))
+
+	go func() {
+		defer t.Stop()
+		defer close(ch)
+		for v := range in {
+			select {
+			case <-t.C:
+				ch <- v
+			}
+		}
+	}()
+
+	return ch
+}
+
+func InFlightRequest[T any](n int, in chan T) chan T {
+	ch := make(chan T)
+
+	bf := make(chan struct{}, n)
+	for range n {
+		bf <- struct{}{}
+	}
+
+	go func() {
+		defer close(ch)
+		defer close(bf)
+
+		for v := range in {
+			select {
+			case <-bf:
+				select {
+				case ch <- v:
+					bf <- struct{}{}
+				}
+			}
+		}
+	}()
+
+	return ch
+}
+```
