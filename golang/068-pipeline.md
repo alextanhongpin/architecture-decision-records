@@ -197,16 +197,34 @@ func main() {
 			ch <- i % 10
 		}
 	}()
-	cancel := Batch(3, time.Second, ch, func(vs []int) {
+	b := BatchFunc(3, time.Second, ch, func(vs []int) {
 		fmt.Println(vs)
 	})
 	time.Sleep(1 * time.Second)
-	cancel()
+	b.Stop()
 	fmt.Println("Hello, 世界")
 }
 
-func Batch[T comparable](n int, period time.Duration, in chan T, fn func([]T)) func() {
+type BatchAction interface {
+	Stop()
+	Flush()
+}
+
+type batchAction struct {
+	stop  func()
+	flush func()
+}
+
+func (b *batchAction) Stop() {
+	b.stop()
+}
+func (b *batchAction) Flush() {
+	b.flush()
+}
+
+func BatchFunc[T comparable](n int, period time.Duration, in chan T, fn func([]T)) BatchAction {
 	cache := make(map[T]struct{})
+	f := make(chan struct{})
 	t := time.NewTicker(period)
 	defer t.Stop()
 
@@ -217,13 +235,19 @@ func Batch[T comparable](n int, period time.Duration, in chan T, fn func([]T)) f
 		}
 		clear(cache)
 
+		if len(keys) == 0 {
+			return
+		}
+
 		fn(keys)
 	}
+	defer flush()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
 
@@ -246,15 +270,23 @@ func Batch[T comparable](n int, period time.Duration, in chan T, fn func([]T)) f
 				if len(cache) >= n {
 					flush()
 				}
+			case <-f:
+				t.Reset(period)
+				flush()
 			case <-t.C:
 				flush()
 			}
 		}
 	}()
+	return &batchAction{
+		stop: func() {
 
-	return func() {
-		cancel()
-		wg.Wait()
+			cancel()
+			wg.Wait()
+		},
+		flush: func() {
+			f <- struct{}{}
+		},
 	}
 }
 ```
