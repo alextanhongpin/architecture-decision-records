@@ -309,3 +309,48 @@ func BatchFunc[T comparable](n int, period time.Duration, in chan T, fn func([]T
 	return b
 }
 ```
+
+### Context
+
+For cancellation, we don't really need to pass context or a done channel as the first argument for every stage function. As long as one of the channel is closed, all subsequent ones will be closed too.
+
+We just need the first stage to be cancellable.
+
+However, we can still make a stage with context using the approach below.
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+func main() {
+	fmt.Println("Hello, 世界")
+}
+
+func Context(ctx context.Context, in chan any) chan any {
+	out := make(chan any)
+
+	go func() {
+		defer close(out)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-in:
+				if !ok {
+					return
+				}
+				out <- v
+			}
+		}
+	}()
+
+	return out
+}
+```
