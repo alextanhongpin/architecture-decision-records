@@ -67,6 +67,13 @@ fanout
 - idempotent
 - context
 
+Some other utilities
+- passthrough
+- progress
+
+context can be supplied through another channel?
+
+
 
 ```go
 // You can edit this code!
