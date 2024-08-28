@@ -22,7 +22,10 @@ bg background
 pg promiseGroup
 
 // sender
-p = pg.loadOrStore(key)
+p, loaded = pg.loadOrStore(key)
+if !loaded { // stored
+  defer p.forget(key)
+}
 bg.send(key)
 p.await()
 ```
@@ -41,3 +44,42 @@ when sending the keys
 - if the keys are still empty fail them, else mset them
 - set all values to the promises
 - for non existing keys, set to nil in cache, but at the same time check the ratio of cache hit vs miss to avoid cache penetration
+
+
+```
+// cache + batch
+// just batch
+if cache
+  cache.send(k)
+else
+  batch.send(k)
+
+cacheBatch(n, func(keys) {
+  kv := mget(keys)
+  for k in keys {
+    v, ok := kv[k]
+    if ok {
+      if v == notfound {
+        pg[k].reject(notfound)
+      } else {
+        pg[k].resolve(v)
+      }
+    } else {
+      db.send(k)
+    }
+  }
+})
+dbBatch(n/2, func(keys) {
+  kv := sql.whereIn(keys)
+  for k in keys {
+    v, ok := kv[k]
+    if ok {
+      pg[k].resolve(v)
+      if cache then cache.set(k, v, ttl) // mset can't ttl
+    } else {
+      pg[k].reject(keynotfound)
+      if cache then cache.set(k, notfound, ttl/2)
+    }
+  }
+})
+```
