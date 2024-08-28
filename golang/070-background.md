@@ -83,3 +83,31 @@ dbBatch(n/2, func(keys) {
   }
 })
 ```
+
+actually we should just leave it to the batch function to decide:
+
+```
+kv = cache.mget(keys)
+for k in keys
+  v, ok = kv[k]
+  if !ok {
+     q.collect(k)
+  } else {
+     res[k] = v
+  }
+}
+kv = db.load(q.keys)
+for k in q.keys {
+  v, ok = kv[k]
+  if ok {
+    cache.set(k, v, ttl)
+  } else {
+    cache.set(k, notfound, ttl/2)
+  }
+  res[k] = v
+}
+```
+
+However, this might not optimize batching for the db if the cache hit is high.
+
+So the first option has some merits.
