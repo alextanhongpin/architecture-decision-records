@@ -111,3 +111,24 @@ for k in q.keys {
 However, this might not optimize batching for the db if the cache hit is high.
 
 So the first option has some merits.
+
+```
+done = make(chan bool)
+ch = make(chan input)
+ch = orDone(done, ch)
+ch = batch(1000, 16ms)
+ch = semaphore(numcpu, ch)
+ch = map(ch, func() {
+  // cache function
+  resolve or reject cached keys
+  return keys not found
+})
+ch = batch(100, 16ms)
+ch = semaphore(numcpu, ch)
+ch = map(ch, func() {
+  // db function
+  resolve or reject
+  set cache
+})
+wait(ch)
+```
