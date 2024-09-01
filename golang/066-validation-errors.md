@@ -167,7 +167,7 @@ Every field will begin with a validation of
 - filter(optional(value, assertions))
 - filter(assertions)
 
-The assertions can be nested inside the `required` or `optional` validator. They will be applied/not applied based on the first value. 
+The assertions can be nested inside the `required` or `optional` validator. They will be applied/not applied based on the first value.
 
 The `filter` is to remove empty values.
 
@@ -188,3 +188,8 @@ array[99].field: "required"
 ```
 
 
+## Returning string vs error
+
+For validation errors, there are no further additional steps except returning an error message. That is why we don't have to create a new error for each validation error, e.g. ErrMinLength.
+
+Sentinel errors are commonly used for taking actions, but for validation errors we only need to return them.
