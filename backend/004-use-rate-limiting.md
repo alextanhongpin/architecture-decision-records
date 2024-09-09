@@ -94,6 +94,11 @@ For more advance usecase, we can also configure the following:
 - quota: can replace limit
 - burst: allow burst request
 
+
+## Rate Limit Header
+
+https://datatracker.ietf.org/doc/html/rfc6585#section-4
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
