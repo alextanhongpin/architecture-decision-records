@@ -99,6 +99,10 @@ For more advance usecase, we can also configure the following:
 
 https://datatracker.ietf.org/doc/html/rfc6585#section-4
 
+## Rate Limit Config
+
+https://www.slashid.dev/blog/id-based-rate-limiting/
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
