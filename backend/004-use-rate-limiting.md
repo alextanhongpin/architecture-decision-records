@@ -99,10 +99,24 @@ For more advance usecase, we can also configure the following:
 
 https://datatracker.ietf.org/doc/html/rfc6585#section-4
 
+We should only return Retry-After. We don't need to expose internal rate limiting policy to client. However, if we are serving the clients, we can return additional headers.
+
+Most rate limit algo like leaky bucket doesnt gave a concept of remaining, it just aims to keep the flow constant.
+
+## Rate limit rollout
+
+Hash based, percentage rollout.
+
 ## Rate Limit Config
 
 https://www.slashid.dev/blog/id-based-rate-limiting/
 
+## Separate Threshold
+
+Use a rate limit with separate rate and separate limit, e.g. 10 per second, but limit to 5 per second.
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
+
+
