@@ -88,4 +88,10 @@ Some useful metrics
 - outflow rate
 - pending queue rate
 
-How can we balance the input and output tatr
+How can we balance the input and output rate.
+
+## Signal
+
+The easiest way is to signal to the client to not retry anymore. 
+
+We can do this several ways - add a rollout that selects a percentage of users to show the real response. The rest should just receive 204 jo content to signal no more retries (because retries is usually based on non 2xx status code). Periodically we will ramp up the percentage of requests that succeeds up to 100%. Then we remove the toggle.
