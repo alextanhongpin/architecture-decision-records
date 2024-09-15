@@ -15,3 +15,5 @@ However, this is only possible if there are no aggregation needed or the need to
 Are there other useful data structure like bloom filter that we can utilize?
 The problem with bloom filter is the initial overhead when there are no data. Also there can be race condition when updating it.
 You can only add, not remove entries in a bloom filter too, unless you recreate it.
+
+This makes is suitable to capture events like user engaged etc.
