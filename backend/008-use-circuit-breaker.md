@@ -162,4 +162,5 @@ tokens <= budget
 ```
 
 https://brooker.co.za/blog/2022/02/16/circuit-breakers.html
+https://dl.acm.org/doi/pdf/10.1145/3542929.3563466
 
