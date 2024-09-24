@@ -161,6 +161,48 @@ https://finagle.github.io/blog/2016/02/08/retry-budgets/
 
 The retry timeout becomes more predictable.
 
+## Other implementation 
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"errors"
+	"fmt"
+	"iter"
+	"time"
+)
+
+func main() {
+	retry := &Retry{MaxRetries: 3}
+	for i, err := range retry.Try() {
+		fmt.Println("Hello, 世界", i, err)
+	}
+}
+
+type Retry struct {
+	MaxRetries int
+	Backoff    func(int) time.Duration
+}
+
+func (r *Retry) Try() iter.Seq2[int, error] {
+	return func(yield func(int, error) bool) {
+		var err error
+		for i := range r.MaxRetries {
+			if i == r.MaxRetries-1 {
+				err = errors.New("limit exceeded")
+			}
+			// TODO: Add throttle
+			if !yield(i, err) {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+	}
+}
+```
 
 ## References
 
