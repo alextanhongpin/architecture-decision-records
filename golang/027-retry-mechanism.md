@@ -204,6 +204,55 @@ func (r *Retry) Try() iter.Seq2[int, error] {
 }
 ```
 
+Improved with context cancellation and custom retries
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"iter"
+	"time"
+)
+
+func main() {
+	retry := &Retry{}
+	for i, err := range retry.Try(context.Background(), 3) {
+		fmt.Println("Hello, 世界", i, err)
+	}
+}
+
+type Retry struct {
+	Backoff func(int) time.Duration
+}
+
+func (r *Retry) Try(ctx context.Context, limit int) iter.Seq2[int, error] {
+	return func(yield func(int, error) bool) {
+		for i := range limit + 1 {
+			if i == limit {
+				err := errors.New("limit exceeded")
+				yield(i, err)
+				return
+			}
+
+			// TODO: Add throttle
+			if !yield(i, nil) {
+				break
+			}
+
+			select {
+			case <-time.After(time.Second):
+			case <-ctx.Done():
+			}
+		}
+	}
+}
+```
+
 ## References
 
 - How AWS approach this https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
