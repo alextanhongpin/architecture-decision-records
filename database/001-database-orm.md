@@ -1,14 +1,21 @@
 # Database ORM
 
-To use ORM or not. 
+## Context
+Deciding whether to use an Object-Relational Mapping (ORM) tool for database interactions.
 
-ORM such as bun has some advantages when t comes to loading deeply nested associations.
+## Decision
+We considered using an ORM such as bun.
 
-They also have the advantage of being able to execute raw query.
+## Consequences
 
-Some disadvantages however is that it doesnt conform to the standard sql interface. 
+### Advantages
+- **Nested Associations**: ORMs like bun provide advantages in loading deeply nested associations.
+- **Raw Queries**: They allow the execution of raw SQL queries when needed.
 
-There are also harder to integrate with when tools like go txdb.
+### Disadvantages
+- **Standard SQL Interface**: ORMs often do not conform to the standard SQL interface, leading to potential inconsistencies.
+- **Integration**: They can be harder to integrate with tools like go txdb.
+- **Maintenance**: Some ORMs may no longer receive updates or might be deprecated in favor of newer ORMs (e.g., go-pg to bun).
 
-The worst part is that they may no longer receives update or they are deprecated in favor of newer orm (e.g. from go-pg to bun).
-
+## Conclusion
+Given the advantages and disadvantages, careful consideration is required to decide whether an ORM is suitable for the project's needs.
