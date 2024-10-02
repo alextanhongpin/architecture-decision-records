@@ -24,4 +24,17 @@ Flow
 - saga
 - background
 
+API Design
+- camelCase response body
+- query string, params, json, csv, html encoder/decoder
+- middleware
+  - auth
+  - request id
+  - cors
+  - logger
+- routes
+- graceful shutdown
+- timeouts
+- default context
+- error handling with status code
 
