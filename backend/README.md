@@ -37,4 +37,8 @@ API Design
 - timeouts
 - default context
 - error handling with status code
+- standardizing api structure
+
+
+
 
