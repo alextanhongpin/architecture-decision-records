@@ -3,6 +3,7 @@
 https://aps.autodesk.com/en/docs/webhooks/v1/tutorials/how-to-verify-payload-signature/
 
 https://www.svix.com/blog/zero-downtime-secret-rotation-webhooks/
+https://docs.svix.com/receiving/verifying-payloads/how-manual
 
 ```go
 package main
