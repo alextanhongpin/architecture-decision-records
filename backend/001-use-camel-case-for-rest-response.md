@@ -1,24 +1,30 @@
-# Use camel-case for REST response
+# Use Camel-Case for REST Response
 
-## Who
+## Status
+Accepted
 
-Backend. REST-based API. GraphQL is already using camel-case naming convention for fields.
+## Context
+This decision applies to the backend team responsible for REST-based APIs. It aims to standardize the naming convention for fields in API responses and query strings to use camel-case, aligning with the existing convention in GraphQL.
 
-## What
+## Decision
+Fields returned in REST API should use camel-case instead of snake-case. This applies to query strings too, not just the API response body.
 
-Fields returned in REST API should be using camel-case instead of snake-case. This applies to query strings too, not just API response body.
+## Rationale
+- **Consistency**: JavaScript variables naming convention favors camel-case over snake-case. Standardizing on camel-case avoids the need for conversion between formats on the frontend.
+- **Efficiency**: Avoiding conversion on both the client and server side reduces the potential for errors and simplifies the codebase.
 
-## Why
+## When to Apply
+- When receiving requests from a client.
+- When returning responses to the client.
 
-- we want to avoid conversion of snake-case to camel-case on the Frontend side. JavaScript variables naming convention now favors camel-case over snake-case.
-- we want to avoid the same conversion on the server-side too, especially with requests received from Frontend.
+## How to Apply
+- Ensure all fields in the API responses and query strings are in camel-case format.
+- Apply this standard consistently across all REST-based APIs.
 
-
-## When
-
-- when receiving requests from a client
-- when returning response to the client
-
-## How
-
-- when receiving and returning response to the client, ensure all fields are returned in the camel-case format
+## Examples
+### Before
+```json
+{
+  "user_id": 123,
+  "user_name": "JohnDoe"
+}
