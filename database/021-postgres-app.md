@@ -43,3 +43,7 @@ func (uc *UseCase) Login(ctx, email...
 }
 ```
 
+## `dapp` 
+
+We use the name distributed app, or short `dapp` for application that requires db storage.
+
