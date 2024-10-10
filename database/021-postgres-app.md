@@ -47,3 +47,13 @@ func (uc *UseCase) Login(ctx, email...
 
 We use the name distributed app, or short `dapp` for application that requires db storage.
 
+
+Some useful dapps:
+
+- idempotency
+- saga
+- lock
+- config
+- feature flags
+- ab
+- experiments
