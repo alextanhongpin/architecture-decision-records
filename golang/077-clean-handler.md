@@ -39,4 +39,9 @@ func (h *Handler) do(w http.ResponseWriter, r *http.Request) error {
 }
 ```
 
-actually a bit redundant, we should hide the error information
+actually a bit redundant, we should hide the error information.
+
+We have two patterns
+
+- separate encoder decoder
+- base controller pattern, where we embed a struct containing all the methods
