@@ -22,13 +22,44 @@ What are the goals of the system, and what is considered a good architecture tha
 - faster developement
 - better monitoring
 
+## CAGE architecture
+
+A modern approach to clean architecture, for golang.
+
+- controller: the layer between client and server, executes an action 
+- action: a verb, aka the business logic
+- gateway: communicates with external world, such as database, measage queue. ensure atomicity by starting a transaction
+- entity: the types in our application. holds business logic that can be used globally. returned by gateway
+
+They all belong in the same folder, and are group by feature. This is essentially a form of vertical slicing.
+
+```
+authentication
+- login.go (action/verb)
+- login_controller.go
+- register.go (action)
+- register_controller.go
+- gateway.go
+- user.go (entity/noun)
+- token.go (entity/noun)
+- errors.go
+search
+- search_controller.go
+- search.go
+- job.go
+apply
+- apply.go
+- cancel.go
+- upload_resume.go
+```
+
 ## Feature driven
 
 Each directory is a feature.
 
 Each feature contains use cases.
 
-For example, an `authentication` feature may contain the following `use cases`:
+For example, an `authentication` feature may contain the following `actions`:
 
 - login
 - register
@@ -51,3 +82,8 @@ We may found that 80% login using whatsapp, and 20% using password.
 We may discover that `reset password` usecase frequency is high and consider just implementing passwordless feature.
 
 Then we can compare the adoption, and possible remove reset password if it is not performing.
+
+We also calculate unique counters of logged in user requests per action.
+This allows us to measure the adoption rate and compare the month over month grow.
+
+
