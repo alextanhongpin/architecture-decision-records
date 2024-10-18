@@ -26,10 +26,10 @@ What are the goals of the system, and what is considered a good architecture tha
 
 A modern approach to clean architecture, for golang.
 
-- controller: the layer between client and server, executes an action 
-- action: a verb, aka the business logic
-- gateway: communicates with external world, such as database, measage queue. ensure atomicity by starting a transaction
-- entity: the types in our application. holds business logic that can be used globally. returned by gateway
+- `controller`: the layer between client and server, executes an action 
+- `action`: a verb, aka the business logic
+- `gateway`: communicates with external world, such as database, measage queue. ensure atomicity by starting a transaction
+- `entity`: the types in our application. holds business logic that can be used globally. returned by gateway
 
 They all belong in the same folder, and are group by feature. This is essentially a form of vertical slicing.
 
