@@ -86,4 +86,8 @@ Then we can compare the adoption, and possible remove reset password if it is no
 We also calculate unique counters of logged in user requests per action.
 This allows us to measure the adoption rate and compare the month over month grow.
 
+## Shared nothing
 
+Each action is standalone and has its own set of errors.
+
+They are declared in the file together. For common errors, they can be defined in the entity file. But they should be redefined as a separate error in the action file.
