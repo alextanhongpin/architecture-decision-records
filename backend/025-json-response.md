@@ -35,3 +35,10 @@ For strongly typed language also, it means more types needs to be created to par
   }
 }
 ```
+
+
+## Errors
+
+For common errors like not found (catch-all-route), unauthorized and unauthenticated, we can just opt to return a static body or just the status code without default body.
+
+This makes design of middlewares easier too, and most of the time the client just needs to check the relevant status code.
