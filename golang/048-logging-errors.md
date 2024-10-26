@@ -27,3 +27,12 @@ Logging is especially useful in application service layer, so we know which step
 Log at application service, or the layer where you orchestrate the steps required to drive business logic to completion.
 
 Don't log in libraries.
+
+
+## Logging fields
+
+We can log the following to make it easier to identify errors
+- app version: so we can detect if an error occurs in just this version or the older ones too
+- timestamp
+- request id
+- stacktrace
