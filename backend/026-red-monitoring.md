@@ -8,3 +8,29 @@ For other product level metrics, we need to define what are the metrics that are
 - daily usage
 - daily active users
 - revenue
+
+
+## Monitoring Service
+
+HTTP
+- method
+- path pattern (without params)
+- status code
+
+Simple service
+- service name
+- action
+- status (ok or error)
+
+SQL
+- repository name
+- query
+- error code
+
+Cache
+- repository name
+- key pattern
+- hit or miss
+
+For each service, we need a top-k.
+  
