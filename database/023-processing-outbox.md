@@ -133,7 +133,9 @@ func main() {
 					defer sem.Done()
 					if err := w.Load(ctx); err != nil {
 						fmt.Println("err", err, i)
-						cancel()
+						if errors.Is(err, EOF) {
+							cancel()
+						}
 					} else {
 						time.Sleep(time.Second)
 						fmt.Println("done", i)
