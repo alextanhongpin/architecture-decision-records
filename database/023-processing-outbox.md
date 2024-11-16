@@ -78,6 +78,26 @@ for range limit
 sleep duration
 ```
 
-The rows are processed sequentially. To allow concurrent processing, we just create a semaphore and run them concurrently.
+The rows are processed sequentially. To allow concurrent processing, we just create a semaphore and run them concurrently. There is additional complexity, if one query does not return a row, we need to cancel all jobs.
 
+Fail on first error:
+
+```
+ctx, cancel = context with cancel
+wg sync.waitgroup
+for range limit
+  select ctx done
+    break
+  wg.add(1)
+  sem.acquire(1)
+  go func () {
+    defer wg.done
+    defer sem.release(1)
+    row = select one
+    if no row then cancel
+    process row
+  }()
+
+wg.wait()
+```
 
