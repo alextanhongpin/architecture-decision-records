@@ -24,4 +24,10 @@ if yhere are errrors wr can see yhe drop ij yhe adoption rate
 2. calculate the growth for each actions
 3. sort the actions by highest growth
 
+## Getting started
+
+Steps to start measuring
+
+1. setup prometheus
+
 ## Consequences
