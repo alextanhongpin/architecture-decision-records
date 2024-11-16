@@ -101,3 +101,96 @@ for range limit
 wg.wait()
 ```
 
+Working example:
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync/atomic"
+	"time"
+)
+
+var EOF = errors.New("EOF")
+
+func main() {
+	w := new(work)
+
+	for range 2 {
+		sem := newSemaphore(3)
+		ctx, cancel := context.WithCancel(context.Background())
+		for i := range 10 {
+			select {
+			case <-ctx.Done():
+				break
+			default:
+				sem.Add()
+				go func() {
+					defer sem.Done()
+					if err := w.Load(ctx); err != nil {
+						fmt.Println("err", err, i)
+						cancel()
+					} else {
+						time.Sleep(time.Second)
+						fmt.Println("done", i)
+					}
+				}()
+			}
+
+		}
+		sem.Wait()
+		fmt.Println("sleep between iteration")
+		time.Sleep(time.Second)
+	}
+
+	fmt.Println("Hello, 世界")
+}
+
+type work struct {
+	i atomic.Int64
+}
+
+func (w *work) Load(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	default:
+		n := w.i.Add(1)
+		if n > 5 {
+			return EOF
+		}
+		return nil
+	}
+
+}
+
+type semaphore struct {
+	n  int
+	ch chan struct{}
+}
+
+func newSemaphore(n int) *semaphore {
+	return &semaphore{
+		n:  n,
+		ch: make(chan struct{}, n),
+	}
+}
+
+func (s *semaphore) Add() {
+	s.ch <- struct{}{}
+}
+
+func (s *semaphore) Done() {
+	<-s.ch
+}
+
+func (s *semaphore) Wait() {
+	for range s.n {
+		s.ch <- struct{}{}
+	}
+}
+```
