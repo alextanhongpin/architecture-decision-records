@@ -21,3 +21,41 @@ Things we want to support
 retryError(err, retryAt)
 job.set_result
 ```
+
+## Basic
+
+The most basic job implementation just have two attributes, name and args:
+
+```
+insert into jobs(name, args) values (?, ?)
+```
+
+```sql
+begin
+select *
+from jobs
+for update
+skip locked
+limit 1;
+-- do sth
+delete from jobs where id = $1;
+commit
+```
+
+This will delete completed jobs. To allow history, we need status:
+
+```
+pending
+success
+failed
+```
+
+To allow retries, we need to log the attempts.
+
+To allow dead letter queue, we need to move the status to failed after n retries. We also need the ability to move it back to pending.
+
+To allow delayed job, we need a timestamp property to indicate when the job should run.
+
+To allow unique jobs, we need a unique id.
+
+
