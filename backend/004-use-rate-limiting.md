@@ -142,8 +142,9 @@ import (
 
 func main() {
 	rl := New(10, time.Second)
-	for i := range 11 {
-		fmt.Println(rl.Allow(), i, rl.Remaining(), rl.RetryAt())
+	for i := range 100 {
+		time.Sleep(50 * time.Millisecond)
+		fmt.Println(i, rl.Remaining(), rl.Allow(), rl.Remaining(), rl.RetryAt(), time.Now())
 	}
 	fmt.Println("Hello, 世界")
 }
@@ -173,24 +174,30 @@ func (r *RateLimiter) Allow() bool {
 }
 
 func (r *RateLimiter) AllowN(n int) bool {
-	return r.inc(n) <= r.limit
-}
-
-func (r *RateLimiter) inc(n int) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.remaining()-n >= 0 {
+		r.count += n
+		return true
+	}
+	return false
+}
+
+func (r *RateLimiter) Remaining() int {
+	r.mu.RLock()
+	n := r.remaining()
+	r.mu.RUnlock()
+	return n
+}
+
+func (r *RateLimiter) remaining() int {
 	now := r.Now().UnixNano()
 	if r.last+r.period <= now {
 		r.last = now
 		r.count = 0
 	}
-	r.count += n
-	return r.count
-}
-
-func (r *RateLimiter) Remaining() int {
-	return r.limit - r.inc(0)
+	return r.limit - r.count
 }
 
 func (r *RateLimiter) RetryAt() time.Time {
@@ -223,12 +230,13 @@ func main() {
 	rl := New(10, time.Second)
 	stop := rl.Clear()
 	defer stop()
-	for i := range 11 {
-		fmt.Println(rl.Allow(k), i, rl.Remaining(k), rl.RetryAt(k))
+	for i := range 100 {
+		time.Sleep(50 * time.Millisecond)
+		fmt.Println(i, rl.Remaining(k), rl.Allow(k), rl.Remaining(k), rl.RetryAt(k))
 	}
 	k = "val"
 	for i := range 11 {
-		fmt.Println(rl.Allow(k), i, rl.Remaining(k), rl.RetryAt(k))
+		fmt.Println(i, rl.Remaining(k), rl.Allow(k), rl.Remaining(k), rl.RetryAt(k))
 	}
 	fmt.Println("Hello, 世界", rl)
 	time.Sleep(2 * time.Second)
@@ -266,17 +274,30 @@ func (r *RateLimiter) Allow(key string) bool {
 }
 
 func (r *RateLimiter) AllowN(key string, n int) bool {
-	return r.inc(key, n) <= r.limit
-}
-
-func (r *RateLimiter) inc(key string, n int) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if _, ok := r.vals[key]; !ok {
+		r.vals[key] = new(State)
+	}
+	if r.remaining(key)-n >= 0 {
+		r.vals[key].count += n
+		return true
+	}
+	return false
+}
+
+func (r *RateLimiter) Remaining(key string) int {
+	r.mu.RLock()
+	n := r.remaining(key)
+	r.mu.RUnlock()
+	return n
+}
+
+func (r *RateLimiter) remaining(key string) int {
 	v, ok := r.vals[key]
 	if !ok {
-		v = &State{}
-		r.vals[key] = v
+		return r.limit
 	}
 
 	now := r.Now().UnixNano()
@@ -284,13 +305,8 @@ func (r *RateLimiter) inc(key string, n int) int {
 		v.last = now
 		v.count = 0
 	}
-	v.count += n
-	return v.count
-}
 
-func (r *RateLimiter) Remaining(key string) int {
-	// TODO: fix limit can be -tive
-	return r.limit - r.inc(key, 0)
+	return r.limit - v.count
 }
 
 func (r *RateLimiter) RetryAt(key string) time.Time {
@@ -324,9 +340,9 @@ func (r *RateLimiter) Clear() func() {
 			select {
 			case <-done:
 				return
-			case <-t.C:
+			case ts := <-t.C:
+				now := ts.UnixNano()
 				r.mu.Lock()
-				now := r.Now().UnixNano()
 				for k, v := range r.vals {
 					if v.last+r.period <= now {
 						delete(r.vals, k)
