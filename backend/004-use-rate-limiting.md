@@ -205,6 +205,144 @@ func (r *RateLimiter) RetryAt() time.Time {
 }
 ```
 
+### Example: Fixed window key 
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+func main() {
+	k := "key"
+	rl := New(10, time.Second)
+	stop := rl.Clear()
+	defer stop()
+	for i := range 11 {
+		fmt.Println(rl.Allow(k), i, rl.Remaining(k), rl.RetryAt(k))
+	}
+	k = "val"
+	for i := range 11 {
+		fmt.Println(rl.Allow(k), i, rl.Remaining(k), rl.RetryAt(k))
+	}
+	fmt.Println("Hello, 世界", rl)
+	time.Sleep(2 * time.Second)
+	fmt.Println("Hello, 世界", rl)
+	time.Sleep(time.Second)
+}
+
+func New(limit int, period time.Duration) *RateLimiter {
+	return &RateLimiter{
+		limit:  limit,
+		period: period.Nanoseconds(),
+		Now:    time.Now,
+		vals:   make(map[string]*State),
+	}
+}
+
+type RateLimiter struct {
+	// Config
+	limit  int
+	period int64
+	Now    func() time.Time
+
+	// State
+	mu   sync.RWMutex
+	vals map[string]*State
+}
+
+type State struct {
+	count int
+	last  int64
+}
+
+func (r *RateLimiter) Allow(key string) bool {
+	return r.AllowN(key, 1)
+}
+
+func (r *RateLimiter) AllowN(key string, n int) bool {
+	return r.inc(key, n) <= r.limit
+}
+
+func (r *RateLimiter) inc(key string, n int) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	v, ok := r.vals[key]
+	if !ok {
+		v = &State{}
+		r.vals[key] = v
+	}
+
+	now := r.Now().UnixNano()
+	if v.last+r.period <= now {
+		v.last = now
+		v.count = 0
+	}
+	v.count += n
+	return v.count
+}
+
+func (r *RateLimiter) Remaining(key string) int {
+	return r.limit - r.inc(key, 0)
+}
+
+func (r *RateLimiter) RetryAt(key string) time.Time {
+	if r.Remaining(key) > 0 {
+		return r.Now()
+	}
+
+	r.mu.RLock()
+	v, ok := r.vals[key]
+	if !ok {
+		r.mu.RUnlock()
+		return r.Now()
+	}
+	last, period := v.last, r.period
+	r.mu.RUnlock()
+	return time.Unix(0, last+period)
+}
+
+func (r *RateLimiter) Clear() func() {
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		t := time.NewTicker(time.Duration(r.period))
+		defer t.Stop()
+
+		for {
+			select {
+			case <-done:
+				return
+			case <-t.C:
+				r.mu.Lock()
+				now := r.Now().UnixNano()
+				for k, v := range r.vals {
+					if v.last+r.period <= now {
+						delete(r.vals, k)
+					}
+				}
+				r.mu.Unlock()
+			}
+		}
+	}()
+
+	return sync.OnceFunc(func() {
+		close(done)
+		wg.Wait()
+	})
+}
+```
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
