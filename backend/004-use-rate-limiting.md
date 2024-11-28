@@ -126,6 +126,85 @@ Use a rate limit with separate rate and separate limit, e.g. 10 per second, but 
 - wait: cron style, waits for the next execution. can just use for loop?
 - nowait: immediately fails. this should be default implementation...
 
+
+### Example: Fixed Window
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+func main() {
+	rl := New(10, time.Second)
+	for i := range 11 {
+		fmt.Println(rl.Allow(), i, rl.Remaining(), rl.RetryAt())
+	}
+	fmt.Println("Hello, 世界")
+}
+
+func New(limit int, period time.Duration) *RateLimiter {
+	return &RateLimiter{
+		limit:  limit,
+		period: period.Nanoseconds(),
+		Now:    time.Now,
+	}
+}
+
+type RateLimiter struct {
+	// Config
+	limit  int
+	period int64
+	Now    func() time.Time
+
+	// State
+	mu    sync.RWMutex
+	count int
+	last  int64
+}
+
+func (r *RateLimiter) Allow() bool {
+	return r.AllowN(1)
+}
+
+func (r *RateLimiter) AllowN(n int) bool {
+	return r.inc(n) <= r.limit
+}
+
+func (r *RateLimiter) inc(n int) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := r.Now().UnixNano()
+	if r.last+r.period <= now {
+		r.last = now
+		r.count = 0
+	}
+	r.count += n
+	return r.count
+}
+
+func (r *RateLimiter) Remaining() int {
+	return r.limit - r.inc(0)
+}
+
+func (r *RateLimiter) RetryAt() time.Time {
+	if r.Remaining() > 0 {
+		return r.Now()
+	}
+
+	r.mu.RLock()
+	last, period := r.last, r.period
+	r.mu.RUnlock()
+	return time.Unix(0, last+period)
+}
+```
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
