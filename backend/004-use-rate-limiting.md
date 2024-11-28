@@ -536,11 +536,11 @@ import (
 
 func main() {
 	k := "key"
-	rl := New(10, time.Second)
+	rl := New(10, time.Second, 3)
 	stop := rl.Clear()
 	defer stop()
 	for i := range 50 {
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		fmt.Println(i, rl.Allow(k))
 	}
 	k = "val"
@@ -553,8 +553,9 @@ func main() {
 	time.Sleep(time.Second)
 }
 
-func New(limit int, period time.Duration) *RateLimiter {
+func New(limit int, period time.Duration, burst int) *RateLimiter {
 	return &RateLimiter{
+		burst:    int64(burst),
 		limit:    limit,
 		period:   period.Nanoseconds(),
 		interval: period.Nanoseconds() / int64(limit),
