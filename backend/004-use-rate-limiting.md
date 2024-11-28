@@ -818,6 +818,11 @@ func (r *Rate) Remaining() int {
 	return r.limit - r.Count()
 }
 
+func (r *Rate) Inc(n int) float64 {
+	r.count = r.Rate() + float64(n)
+	return r.count
+}
+
 func (r *Rate) AllowN(n int) bool {
 	if r.Remaining()-n >= 0 {
 		r.count += float64(n)
@@ -829,6 +834,41 @@ func (r *Rate) AllowN(n int) bool {
 
 func (r *Rate) Allow() bool {
 	return r.AllowN(1)
+}
+
+type ErrorRate struct {
+	success *Rate
+	failure *Rate
+	limit   int
+	ratio   float64
+}
+
+func (r *ErrorRate) Fail() {
+	r.failure.Inc(1)
+	r.success.Inc(0)
+}
+
+func (r *ErrorRate) Success() {
+	r.failure.Inc(0)
+	r.success.Inc(1)
+}
+
+func (r *ErrorRate) Ratio() float64 {
+	f := r.failure.Inc(0)
+	s := r.success.Inc(0)
+	if s == 0 {
+		return 0
+	}
+	return f / (s + f)
+}
+
+func (r *ErrorRate) Allow() bool {
+	f := r.failure.Inc(0)
+	s := r.success.Inc(0)
+	if s == 0 {
+		return f > float64(r.limit)
+	}
+	return f > float64(r.limit) && f/(s+f) > r.ratio
 }
 ```
 
