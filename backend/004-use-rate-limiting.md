@@ -520,6 +520,115 @@ func (r *RateLimiter) Clear() func() {
 
 ```
 
+
+## GCRA Keys
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+func main() {
+	k := "key"
+	rl := New(10, time.Second)
+	stop := rl.Clear()
+	defer stop()
+	for i := range 50 {
+		time.Sleep(50 * time.Millisecond)
+		fmt.Println(i, rl.Allow(k))
+	}
+	k = "val"
+	for i := range 11 {
+		fmt.Println(i, rl.Allow(k))
+	}
+	fmt.Println("Hello, 世界", rl)
+	time.Sleep(2 * time.Second)
+	fmt.Println("Hello, 世界", rl)
+	time.Sleep(time.Second)
+}
+
+func New(limit int, period time.Duration) *RateLimiter {
+	return &RateLimiter{
+		limit:    limit,
+		period:   period.Nanoseconds(),
+		interval: period.Nanoseconds() / int64(limit),
+		Now:      time.Now,
+		vals:     make(map[string]int64),
+	}
+}
+
+type RateLimiter struct {
+	// Config
+	burst    int64
+	limit    int
+	period   int64
+	interval int64
+	Now      func() time.Time
+
+	// State
+	mu   sync.RWMutex
+	vals map[string]int64
+}
+
+func (r *RateLimiter) Allow(key string) bool {
+	return r.AllowN(key, 1)
+}
+
+func (r *RateLimiter) AllowN(key string, n int64) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	now := r.Now().UnixNano()
+	t := max(r.vals[key], now)
+	if t-r.burst*r.interval <= now {
+		r.vals[key] = t + n*r.interval
+		return true
+	}
+
+	return false
+}
+
+func (r *RateLimiter) Clear() func() {
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		t := time.NewTicker(time.Duration(r.period))
+		defer t.Stop()
+
+		for {
+			select {
+			case <-done:
+				return
+			case <-t.C:
+				r.mu.Lock()
+				now := r.Now().UnixNano()
+				for k, v := range r.vals {
+					if v+r.period <= now {
+						delete(r.vals, k)
+					}
+				}
+				r.mu.Unlock()
+			}
+		}
+	}()
+
+	return sync.OnceFunc(func() {
+		close(done)
+		wg.Wait()
+	})
+}
+```
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
