@@ -762,6 +762,76 @@ func (l *ErrorLimiter) Allow() bool {
 }
 ```
 
+### Rate
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"math"
+	"time"
+)
+
+func main() {
+	r := New(10, time.Second)
+	for range 100 {
+		time.Sleep(10 * time.Millisecond)
+		fmt.Println(r.Remaining(), r.Allow(), r.Remaining(), r.Count(), r.Rate())
+	}
+	fmt.Println("Hello, 世界")
+}
+
+type Rate struct {
+	count  float64
+	limit  int
+	period int64
+	last   int64
+	Now    func() time.Time
+}
+
+func New(limit int, period time.Duration) *Rate {
+	return &Rate{
+		count:  0.0,
+		limit:  limit,
+		period: period.Nanoseconds(),
+		Now:    time.Now,
+	}
+}
+
+func (r *Rate) Rate() float64 {
+	now := r.Now().UnixNano()
+	elapsed := min(now-r.last, r.period)
+	factor := 1.0 - float64(elapsed)/float64(r.period)
+	r.count *= factor
+	r.last = now
+	return r.count
+}
+
+func (r *Rate) Count() int {
+	return int(math.Ceil(r.Rate()))
+}
+
+func (r *Rate) Remaining() int {
+	return r.limit - r.Count()
+}
+
+func (r *Rate) AllowN(n int) bool {
+	if r.Remaining()-n >= 0 {
+		r.count += float64(n)
+		return true
+	}
+
+	return false
+}
+
+func (r *Rate) Allow() bool {
+	return r.AllowN(1)
+}
+```
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
