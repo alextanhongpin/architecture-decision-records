@@ -115,6 +115,17 @@ https://www.slashid.dev/blog/id-based-rate-limiting/
 
 Use a rate limit with separate rate and separate limit, e.g. 10 per second, but limit to 5 per second.
 
+## Implementation 
+
+- by frequency
+- by duration
+- by error rate
+- by throttle
+- combination
+
+- wait: cron style, waits for the next execution. can just use for loop?
+- nowait: immediately fails. this should be default implementation...
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
