@@ -360,7 +360,7 @@ func (r *RateLimiter) Clear() func() {
 }
 ```
 
-## Example: Sliding window (Broken)
+## Example: Sliding window key
 
 ```go
 // You can edit this code!
@@ -381,11 +381,11 @@ func main() {
 	defer stop()
 	for i := range 50 {
 		time.Sleep(50 * time.Millisecond)
-		fmt.Println(rl.Allow(k), i, rl.Remaining(k), rl.RetryAt(k))
+		fmt.Println(i, rl.Remaining(k), rl.Allow(k), rl.Remaining(k), rl.RetryAt(k))
 	}
 	k = "val"
 	for i := range 11 {
-		fmt.Println(rl.Allow(k), i, rl.Remaining(k), rl.RetryAt(k))
+		fmt.Println(i, rl.Remaining(k), rl.Allow(k), rl.Remaining(k), rl.RetryAt(k))
 	}
 	fmt.Println("Hello, 世界", rl)
 	time.Sleep(2 * time.Second)
@@ -424,25 +424,37 @@ func (r *RateLimiter) Allow(key string) bool {
 }
 
 func (r *RateLimiter) AllowN(key string, n int) bool {
-	return r.inc(key, n) <= r.limit
-}
-
-func (r *RateLimiter) inc(key string, n int) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if _, ok := r.vals[key]; !ok {
+		r.vals[key] = new(State)
+	}
+	if r.remaining(key)-n >= 0 {
+		r.vals[key].curr += n
+		return true
+	}
+	return false
+}
+
+func (r *RateLimiter) Remaining(key string) int {
+	r.mu.RLock()
+	n := r.remaining(key)
+	r.mu.RUnlock()
+	return n
+}
+
+func (r *RateLimiter) remaining(key string) int {
 	v, ok := r.vals[key]
 	if !ok {
-		v = &State{}
-		r.vals[key] = v
+		return r.limit
 	}
 
 	now := r.Now().UnixNano()
 	curr := now - now%r.period
 	prev := curr - r.period
-
 	if v.last == prev {
-		v.prev = min(v.curr, r.limit)
+		v.prev = v.curr
 		v.curr = 0
 		v.last = curr
 	} else if v.last != curr {
@@ -450,13 +462,10 @@ func (r *RateLimiter) inc(key string, n int) int {
 		v.curr = 0
 		v.last = curr
 	}
-	v.curr += n
-	ratio := float64(now%r.period) / float64(r.period)
-	return int(math.Floor(float64(v.prev)*(1-ratio) + float64(v.curr)))
-}
 
-func (r *RateLimiter) Remaining(key string) int {
-	return r.limit - r.inc(key, 0)
+	ratio := 1.0 - float64(now%r.period)/float64(r.period)
+	count := int(math.Floor(float64(v.prev)*ratio + float64(v.curr)))
+	return r.limit - count
 }
 
 func (r *RateLimiter) RetryAt(key string) time.Time {
@@ -508,6 +517,7 @@ func (r *RateLimiter) Clear() func() {
 		wg.Wait()
 	})
 }
+
 ```
 
 ## Consequences
