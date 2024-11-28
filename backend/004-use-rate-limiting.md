@@ -912,6 +912,36 @@ func (r *ErrorRate) Allow() bool {
 }
 ```
 
+
+### Error limiting
+
+Note that we try to explore the rate limiter usage for limiting errors too. However, that should be left to circuit breaker.
+
+Rate limit limits request, circuit breaker prevents excessive errors.
+
+We can have still have event based rate limiter, where the event can be an error. Notice the difference in request based:
+
+
+In the allow, we immediately increment the count and check the count is less than the lilmit.
+
+In the error based, we can have two implementation
+- fail fast
+- self healing
+
+In fail fast, we check the count is less than limit. No increment happens here. We lnly increment when there is an error. Optionally we can decrement when there is success, or multiply when there is a continous errror (in this scenario, we are not counting total errors quota, but rather an error score that is specific to the application.
+
+In self healing mode, we have two options, with the latter less preferable
+
+- retry after sleep duration
+- decay count
+- allow every n request, and decrement on success
+- auto recover through events or signals elsewhere e,g, health check
+
+
+It all depends on use case. For example, you may want to fail fast for a retry operation, when there are too many errors in retries (permanent error). Or if you have a batch process, and you have specific error quota, e.g. if first 10 fails out of 1000 (could have terminated on first failure, but maybe we want some leeway).
+
+Self healing can be implemented for external request, or when the ererors are expected to be intermittent.
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
