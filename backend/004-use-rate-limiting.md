@@ -772,67 +772,94 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"time"
 )
 
 func main() {
 	r := New(10, time.Second)
-	for range 100 {
-		time.Sleep(10 * time.Millisecond)
+	for range 1 {
+		time.Sleep(100 * time.Millisecond)
 		fmt.Println(r.Remaining(), r.Allow(), r.Remaining(), r.Count(), r.Rate())
+	}
+	er := NewErrorRate(30, time.Second, 0.5)
+	for range 100 {
+		time.Sleep(5 * time.Millisecond)
+		fmt.Print(er.Allow(), er.Ratio())
+		fmt.Println(er.Counts())
+		if rand.Float64() < 0.8 {
+			er.Fail()
+		} else {
+			er.Success()
+		}
 	}
 	fmt.Println("Hello, 世界")
 }
 
 type Rate struct {
 	count  float64
-	limit  int
 	period int64
 	last   int64
 	Now    func() time.Time
 }
 
-func New(limit int, period time.Duration) *Rate {
+func NewRate(period time.Duration) *Rate {
 	return &Rate{
-		count:  0.0,
-		limit:  limit,
 		period: period.Nanoseconds(),
 		Now:    time.Now,
 	}
 }
 
-func (r *Rate) Rate() float64 {
+func (r *Rate) Count() float64 {
 	now := r.Now().UnixNano()
 	elapsed := min(now-r.last, r.period)
-	factor := 1.0 - float64(elapsed)/float64(r.period)
-	r.count *= factor
-	r.last = now
+	return r.count * (1.0 - float64(elapsed)/float64(r.period))
+}
+
+func (r *Rate) Inc(n float64) float64 {
+	r.count = r.Count() + n
+	r.last = r.Now().UnixNano()
 	return r.count
 }
 
-func (r *Rate) Count() int {
+type Flow struct {
+	limit int
+	rate  *Rate
+}
+
+func New(limit int, period time.Duration) *Flow {
+	return &Flow{
+		limit: limit,
+		rate:  NewRate(period),
+	}
+}
+
+func (r *Flow) Rate() float64 {
+	return r.rate.Count()
+}
+
+func (r *Flow) Count() int {
 	return int(math.Ceil(r.Rate()))
 }
 
-func (r *Rate) Remaining() int {
+func (r *Flow) Remaining() int {
 	return r.limit - r.Count()
 }
 
-func (r *Rate) Inc(n int) float64 {
-	r.count = r.Rate() + float64(n)
-	return r.count
+func (r *Flow) Inc(n int) float64 {
+	return r.rate.Inc(float64(n))
 }
 
-func (r *Rate) AllowN(n int) bool {
+func (r *Flow) AllowN(n int) bool {
 	if r.Remaining()-n >= 0 {
-		r.count += float64(n)
+		r.Inc(n)
 		return true
 	}
 
 	return false
 }
 
-func (r *Rate) Allow() bool {
+func (r *Flow) Allow() bool {
 	return r.AllowN(1)
 }
 
@@ -843,6 +870,15 @@ type ErrorRate struct {
 	ratio   float64
 }
 
+func NewErrorRate(limit int, period time.Duration, ratio float64) *ErrorRate {
+	return &ErrorRate{
+		success: NewRate(period),
+		failure: NewRate(period),
+		limit:   limit,
+		ratio:   ratio,
+	}
+}
+
 func (r *ErrorRate) Fail() {
 	r.failure.Inc(1)
 	r.success.Inc(0)
@@ -851,6 +887,10 @@ func (r *ErrorRate) Fail() {
 func (r *ErrorRate) Success() {
 	r.failure.Inc(0)
 	r.success.Inc(1)
+}
+
+func (r *ErrorRate) Counts() (float64, float64) {
+	return r.success.Inc(0), r.failure.Inc(0)
 }
 
 func (r *ErrorRate) Ratio() float64 {
@@ -866,9 +906,9 @@ func (r *ErrorRate) Allow() bool {
 	f := r.failure.Inc(0)
 	s := r.success.Inc(0)
 	if s == 0 {
-		return f > float64(r.limit)
+		return !(f+s > float64(r.limit))
 	}
-	return f > float64(r.limit) && f/(s+f) > r.ratio
+	return !(f+s > float64(r.limit) && f/(s+f) > r.ratio)
 }
 ```
 
