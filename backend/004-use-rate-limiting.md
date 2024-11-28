@@ -630,6 +630,138 @@ func (r *RateLimiter) Clear() func() {
 }
 ```
 
+### Error Limiter
+
+Stops when the error exceeds the limit. Forgiving by allowing the tries to be increment for each successes.
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"math/rand/v2"
+)
+
+func main() {
+	l := New(3)
+	var fail int
+	var ok int
+	for range 100 {
+		allow := l.Allow()
+		fmt.Println(allow, l.count)
+		if !allow {
+			continue
+		}
+		ok++
+		if rand.Float64() < 0.5 {
+			fail++
+			l.fail()
+		} else {
+			l.ok()
+		}
+	}
+	fmt.Println("Hello, 世界", ok, fail, l)
+}
+
+type ErrorLimiter struct {
+	limit int
+	count float64
+}
+
+func New(limit int) *ErrorLimiter {
+	return &ErrorLimiter{
+		limit: limit,
+	}
+}
+
+func (l *ErrorLimiter) fail() {
+	l.count = min(l.count+1.0, float64(l.limit))
+}
+func (l *ErrorLimiter) ok() {
+	l.count = max(l.count-0.5, 0)
+}
+func (l *ErrorLimiter) Allow() bool {
+	return int(l.count) < l.limit
+}
+```
+
+We can modify it to include decay ... that is, the errors dissipates over time and can be retried later.
+
+
+```go
+// You can edit this code!
+// Click here and start typing.
+package main
+
+import (
+	"fmt"
+	"math/rand/v2"
+	"time"
+)
+
+func main() {
+	l := New(3, time.Second)
+	var fail int
+	var ok int
+	for range 100 {
+		time.Sleep(100 * time.Millisecond)
+		allow := l.Allow()
+		fmt.Println(allow, l.count)
+		if !allow {
+			continue
+		}
+		ok++
+		if rand.Float64() < 0.5 {
+			fail++
+			l.fail()
+		} else {
+			l.ok()
+		}
+	}
+	fmt.Println("Hello, 世界", ok, fail, l)
+}
+
+type ErrorLimiter struct {
+	limit  int
+	count  float64
+	period int64
+	last   int64
+	Now    func() time.Time
+}
+
+func New(limit int, period time.Duration) *ErrorLimiter {
+	return &ErrorLimiter{
+		limit:  limit,
+		period: period.Nanoseconds(),
+		Now:    time.Now,
+	}
+}
+
+func (l *ErrorLimiter) fail() {
+	l.decay()
+	l.count = min(l.count+1.0, float64(l.limit)+1)
+}
+func (l *ErrorLimiter) ok() {
+	l.decay()
+	l.count = max(l.count-0.5, 0)
+}
+
+func (l *ErrorLimiter) decay() {
+	now := l.Now().UnixNano()
+	elapsed := min(now-l.last, l.period)
+	ratio := 1.0 - float64(elapsed)/float64(l.period)
+	l.count *= ratio
+	l.last = now
+}
+
+func (l *ErrorLimiter) Allow() bool {
+	l.decay()
+	return int(l.count) < l.limit
+}
+```
+
 ## Consequences
 
 Rate limiting protects your server from DDOS.
