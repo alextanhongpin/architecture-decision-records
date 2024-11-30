@@ -12,6 +12,15 @@
 
 An operation is idempotent if executing it with the same request produces the same response. The execution happens exactly-once, as subsequent request will only return the cached response.
 
+```
+fn(key, req) -> res
+
+fn: the idempotent function
+key: the idempotency key
+req: the request
+res: the response
+```
+
 An idempotent operation is usually accompanied by an idempotency key to denote a unique operation.
 
 The idempotency key, request and response is usually stored in a cache for a period of time. The retention period is not forever. After the retention period expired, the same request may be executed again. A permanent storage can be used as an alternative if we want to keep the operation permanently idempotent.
@@ -159,7 +168,8 @@ https://stripe.com/docs/api/idempotent_requests
 
 https://developer.mastercard.com/mastercard-send-person-to-person/documentation/api-basics/
 
-## Design
+## Implementation 
+
 
 Ideally the idempotency package should be storage (postgres, redis) independent.
 
@@ -168,9 +178,56 @@ The idea is to have a factory that takes a normal handler, and convert it into i
 
 ```
 factory = redis_factory()
-idempotent_handler = factory(handler, lock_ttl, keep_ttl)
+idempotent_handler = factory.make(handler, opts)
 idempotent_handler.do(ctx, key, req)
 ```
+
+### Redis
+
+Implementation idempotency in redis is tricky, considering there is no built-in locking mechanism like postgres (e.g. advisory lock).
+
+The `redlock` algo might work, but with additional complexity. We opt for a single node solution instead in order to customize the behavior.
+
+
+We start with the data structure. We just use a simple string to store both the pending and completed state.
+
+To acquire the lock, as well as returning the existing payload, we do:
+```
+# set or get
+$ set <key> <token> nx get px <lock ttl ms>
+nil: the value is set/does not exist
+val: the existing value
+```
+
+This ensures both the set and get operation is atomic. Otherwise, there will be a dilemma between whether to get or set first in separate operations.
+
+It value exists, we just need to check if it is a token uuid or a json body.
+
+If it is a token uuid, it means another process is processing it. Otherwise, we check the json request to ensure it matches the existing request.
+
+After acquiring the lock, we still need to extend it, in case the process takes longer than the lock timeout:
+
+```
+@every 7/10 of lock_ttl
+extend(key, token, lock_ttl)
+```
+
+If an error occurs, we need to unlock, or wait for the timeout to expire:
+
+```
+unlock(key, token)
+```
+
+Otherwise, we process the function and replace the token uuid with the payload. We also update the ttl and specify how long to keep it 
+
+
+```
+replace(key, token, payload, keep_ttl)
+```
+
+At this point, the extend or unlock will fail because the token already changes.
+
+
 
 ## Consequences
 
