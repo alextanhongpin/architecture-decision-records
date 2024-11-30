@@ -139,6 +139,59 @@ lock(1m)
 process() // what if the process took 2m to complete? another process calling can acquire the lock
 ```
 
+### Waiting to acquire a lock
+
+A client can keep polling to acquire the lock. However, this naive implementation will not work:
+
+```go
+// resetAfter retrieves the remaining time before the key expires.
+func (l *Locker) resetAfter(ctx context.Context, key string) (time.Duration, error) {
+	duration, err := l.client.PTTL(ctx, key).Result()
+	// The key may be deleted already, so we return 0 to allow retry immediately.
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	}
+
+	return duration, err
+}
+```
+
+```go
+func (l *Locker) TryLock(ctx context.Context, key string, ttl, wait time.Duration) (string, error) {
+	nowait := wait <= 0
+	if nowait {
+		return l.Lock(ctx, key, ttl)
+	}
+
+	// Create a context with a timeout for the wait duration.
+	ctx, cancel := context.WithTimeoutCause(ctx, wait, ErrLockWaitTimeout)
+	defer cancel()
+
+	for {
+		// Check the remaining time before the key expires.
+		sleep, err := l.resetAfter(ctx, key)
+		if err != nil {
+			return "", fmt.Errorf("try lock: %w", err)
+		}
+
+		// Sleep for the remaining time before the key expires.
+		select {
+		case <-ctx.Done():
+			return "", context.Cause(ctx)
+		case <-time.After(sleep):
+			token, err := l.Lock(ctx, key, ttl)
+			if errors.Is(err, ErrLocked) {
+				continue
+			}
+
+			return token, err
+		}
+	}
+}
+```
+
+Above, we try to check the previous expiry of the lock duration that is held by another process. This doesn't work because there is simply too much waiting time. If the lock is released early, we will end up waiting a long time.
+
 ### Metrics
 
 - lock hit: number of successful locks acquired
