@@ -159,6 +159,19 @@ https://stripe.com/docs/api/idempotent_requests
 
 https://developer.mastercard.com/mastercard-send-person-to-person/documentation/api-basics/
 
+## Design
+
+Ideally the idempotency package should be storage (postgres, redis) independent.
+
+The idea is to have a factory that takes a normal handler, and convert it into idempotent handler.
+
+
+```
+factory = redis_factory()
+idempotent_handler = factory(handler, lock_ttl, keep_ttl)
+idempotent_handler.do(ctx, key, req)
+```
+
 ## Consequences
 
 
