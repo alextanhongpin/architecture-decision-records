@@ -228,6 +228,28 @@ replace(key, token, payload, keep_ttl)
 At this point, the extend or unlock will fail because the token already changes.
 
 
+The pseudo code
+```
+def idempotent(key, req) -> res:
+  data = get(key)
+  if data is not none:
+    if is_token(data):
+       return ErrRequestInFlight
+    if hash(req) != data.req:
+       return ErrRequestMismatch
+    return data.res
+  token = new_token()
+  ok = setnx(key, token, lock_ttl)
+  if not ok:
+    return ErrRequestInFlight
+  defer unlock(key, token)
+  set_interval(extend(key, token, lock_ttl), 7/10*lock_ttl)
+  res = work()
+  replace(key, token, data(req=hash(req), res=res))
+  return res
+```
+
+
 
 ## Consequences
 
