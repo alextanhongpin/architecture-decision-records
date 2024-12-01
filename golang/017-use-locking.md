@@ -192,6 +192,22 @@ func (l *Locker) TryLock(ctx context.Context, key string, ttl, wait time.Duratio
 
 Above, we try to check the previous expiry of the lock duration that is held by another process. This doesn't work because there is simply too much waiting time. If the lock is released early, we will end up waiting a long time.
 
+### Locking strategy
+
+The lock does not last forever. There are a few ways to deal with this:
+1. extend the lock periodically using a background job
+2. terminate the process before the lock expires
+
+One is discussed above. For two, it is simply using a context:
+
+```go
+// We terminate it after 50s. Our lock duration is 60s.
+ctx, cancel := context.WithTimeout(ctx, 50*time.Second)
+defer cancel()
+
+lock.Lock(ctx, key, fn, time.Minute)
+```
+
 ### Metrics
 
 - lock hit: number of successful locks acquired
