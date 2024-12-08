@@ -25,15 +25,19 @@ v, loaded, err := singleflight.do(key, func() (T, err) {
 
 
 ```
-ok = setnx(key, token, ttl)
+ok = setnx(key + ":fetch", token, ttl)
 if !ok {
+  lock_ttl = ttl(key + ":fetch")
+  wait_ttl = min(wait_ttl, lock_ttl)
   sub = subscribe(key)
   for {
      select(sub, wait_ttl, ping)
-     value = getter()
+     value = get(key)
      return value, true, nik
   }
+  return getter()
 }
+go refresh()
 value = getter()
 publish(key, value)
 return value, false, nil
