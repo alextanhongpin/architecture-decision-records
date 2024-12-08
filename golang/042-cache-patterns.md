@@ -28,3 +28,19 @@ https://medium.com/@mena.meseha/3-major-problems-and-solutions-in-the-cache-worl
 https://www.alibabacloud.com/en/knowledge/developer1/detailed-explanation-caching-problems?_p_lc=1
 
 Use bloom filter, because attackers can use fake ids that will be cached if we set to `_nil_`.
+
+
+## Singleflight
+
+Caching works best with singleflight to prevent thundering herd (on the same server). Note that on separate server, there can still be race condition and synchronizing might be difficult.
+
+At worst, we have multiple servers making thr fetch.
+
+Otherwise, on a single instance, this works best:
+
+```
+v, err := cache.load(key)
+if errors.Is(err, ErrKeyNotExists) {
+  v, err, shared = singleflight.Do(key, func() {})
+}
+```
