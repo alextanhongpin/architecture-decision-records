@@ -1,53 +1,807 @@
-# Use rate limiting 
+# Use Rate Limiting
 
+## Status
 
-## Statue
-
-`draft`
+`accepted`
 
 ## Context
 
-Rate limiting is part of the microservice resiliency toolkit. Without rate limiting, clients can make potentially unlimited requests, causing a DDOS attack and bringing down the server.
+Rate limiting is a critical component of microservice resiliency and system protection. Without proper rate limiting, clients can make unlimited requests, potentially causing distributed denial-of-service (DDoS) attacks and bringing down servers. Rate limiting helps maintain system stability, ensures fair resource allocation, and protects against abuse.
 
-However, rate limiting is not only applicable to throttling requests. We can also use it to limit any kinds of units such as GMV, no of transaction, weight, size in bytes, duration.
+Rate limiting applications extend beyond simple request throttling. We can apply rate limiting to various units including:
+- API requests per user/IP
+- GMV (Gross Merchandise Value) limits
+- Transaction counts and volumes
+- Data transfer bytes
+- Processing duration
+- Error rates and failure counts
 
+## Decision
 
-Not all rate limiting are counter based. Some are rate based, that is they allow operations to be done with specific interval. Leaky bucket is an example of such rate limit algorithm.
+Implement a comprehensive rate limiting strategy that includes multiple algorithms and patterns to handle different use cases:
 
+1. **Token Bucket** for burst handling with sustained rates
+2. **Fixed Window** for simple quota-based limiting
+3. **Sliding Window** for smoother rate distribution
+4. **GCRA (Generic Cell Rate Algorithm)** for precise traffic shaping
+5. **Error Rate Limiting** for fault tolerance
 
-### Min interval between request
+## Rate Limiting Concepts
 
-If we make 5 requests per second, we can keep the rate constant by calling each request with 200ms interval. Instead of 200ms, we can also make it 100ms min interval. So it is possible to finish an operation earlier, while not burdening the system.
+### Controlled vs Uncontrolled Operations
 
-We can also use jitter.
+**Controlled Operations**: You have control over the rate of execution (e.g., batch processing, API client calls)
+- Strategy: **Delay** the operation until the next allowed time
+- Implementation: Load leveling with sleep/wait mechanisms
 
-### Controlled vs uncontrolled
+**Uncontrolled Operations**: External requests arrive unpredictably (e.g., user API requests)
+- Strategy: **Reject** requests that exceed the rate limit
+- Implementation: Immediate accept/reject decisions
 
-Rate limiting operations can be divided into two types, controlled and uncontrolled.
+### Time Windows and Burst Handling
 
-Controlled means you have control over the rate at which a task is done, e.g. running a loop to fetch users using Github API.
+Fixed time windows can create traffic spikes at window boundaries. Users might consume their entire quota at the end of one period and immediately at the start of the next period.
 
-Uncontrolled is the opposite. For example, you are serving an API to end users, and users can make requests anytime.
+**Solutions:**
+- **Sliding Windows**: Smooth out rate distribution over time
+- **Minimum Intervals**: Enforce spacing between requests
+- **Burst Capacity**: Allow short bursts while maintaining average rate
 
-For controlled operations, we want to _delay_ the call until the next allow at. For uncontrolled, we want to _prevent_ the call if it is before the next allow at. 
+### Quota vs Limit Patterns
 
-The process of delaying the call is closer to load leveling than rate limiting. 
+**Traditional Limits**: Define maximum requests allowed in a time window
+**Quota-based**: Track remaining capacity that decreases over time
 
-### Load Leveling
+```go
+// Limit-based: "5 requests per second"
+if currentCount < maxRequests {
+    allowRequest()
+}
 
-Load leveling smoothen load by processing requests at a constant rate. Leaky bucket is one such algorithm.
-
-One naive implementation is to just sleep before the next call:
-
-```python
-for req in requests:
-  do(req)
-  sleep(1)
+// Quota-based: "5 tokens, refilled at 1 token/200ms"
+if tokensRemaining > 0 {
+    tokensRemaining--
+    allowRequest()
+}
 ```
 
-### Burst
+## Implementation Patterns
 
-Burst allows successive requests to be made, bypassing the load-leveling mechanism.
+### 1. Token Bucket Algorithm
+
+Ideal for handling burst traffic while maintaining average rate limits:
+
+```go
+package ratelimit
+
+import (
+    "sync"
+    "time"
+)
+
+type TokenBucket struct {
+    capacity     int64         // Maximum tokens
+    tokens       int64         // Current tokens
+    refillRate   int64         // Tokens per second
+    lastRefill   time.Time     // Last refill time
+    mutex        sync.Mutex
+}
+
+func NewTokenBucket(capacity, refillRate int64) *TokenBucket {
+    return &TokenBucket{
+        capacity:   capacity,
+        tokens:     capacity,
+        refillRate: refillRate,
+        lastRefill: time.Now(),
+    }
+}
+
+func (tb *TokenBucket) Allow() bool {
+    return tb.AllowN(1)
+}
+
+func (tb *TokenBucket) AllowN(n int64) bool {
+    tb.mutex.Lock()
+    defer tb.mutex.Unlock()
+    
+    tb.refill()
+    
+    if tb.tokens >= n {
+        tb.tokens -= n
+        return true
+    }
+    return false
+}
+
+func (tb *TokenBucket) refill() {
+    now := time.Now()
+    elapsed := now.Sub(tb.lastRefill)
+    tokensToAdd := int64(elapsed.Seconds()) * tb.refillRate
+    
+    if tokensToAdd > 0 {
+        tb.tokens = min(tb.capacity, tb.tokens+tokensToAdd)
+        tb.lastRefill = now
+    }
+}
+
+func (tb *TokenBucket) TokensRemaining() int64 {
+    tb.mutex.Lock()
+    defer tb.mutex.Unlock()
+    
+    tb.refill()
+    return tb.tokens
+}
+```
+
+### 2. Fixed Window Counter
+
+Simple and memory-efficient for basic rate limiting:
+
+```go
+type FixedWindowLimiter struct {
+    limit      int
+    window     time.Duration
+    counters   map[string]*WindowState
+    mutex      sync.RWMutex
+}
+
+type WindowState struct {
+    count     int
+    windowStart int64
+}
+
+func NewFixedWindowLimiter(limit int, window time.Duration) *FixedWindowLimiter {
+    limiter := &FixedWindowLimiter{
+        limit:    limit,
+        window:   window,
+        counters: make(map[string]*WindowState),
+    }
+    
+    // Start cleanup goroutine
+    go limiter.cleanup()
+    return limiter
+}
+
+func (f *FixedWindowLimiter) Allow(key string) bool {
+    return f.AllowN(key, 1)
+}
+
+func (f *FixedWindowLimiter) AllowN(key string, n int) bool {
+    f.mutex.Lock()
+    defer f.mutex.Unlock()
+    
+    now := time.Now().UnixNano()
+    windowStart := now - (now % f.window.Nanoseconds())
+    
+    state, exists := f.counters[key]
+    if !exists || state.windowStart != windowStart {
+        state = &WindowState{
+            count:       0,
+            windowStart: windowStart,
+        }
+        f.counters[key] = state
+    }
+    
+    if state.count+n <= f.limit {
+        state.count += n
+        return true
+    }
+    
+    return false
+}
+
+func (f *FixedWindowLimiter) Remaining(key string) int {
+    f.mutex.RLock()
+    defer f.mutex.RUnlock()
+    
+    now := time.Now().UnixNano()
+    windowStart := now - (now % f.window.Nanoseconds())
+    
+    state, exists := f.counters[key]
+    if !exists || state.windowStart != windowStart {
+        return f.limit
+    }
+    
+    return f.limit - state.count
+}
+
+func (f *FixedWindowLimiter) cleanup() {
+    ticker := time.NewTicker(f.window)
+    defer ticker.Stop()
+    
+    for range ticker.C {
+        f.mutex.Lock()
+        now := time.Now().UnixNano()
+        
+        for key, state := range f.counters {
+            if now-state.windowStart > f.window.Nanoseconds() {
+                delete(f.counters, key)
+            }
+        }
+        f.mutex.Unlock()
+    }
+}
+```
+
+### 3. Sliding Window Log
+
+Maintains precise request timestamps for accurate rate limiting:
+
+```go
+type SlidingWindowLog struct {
+    limit    int
+    window   time.Duration
+    logs     map[string][]time.Time
+    mutex    sync.RWMutex
+}
+
+func NewSlidingWindowLog(limit int, window time.Duration) *SlidingWindowLog {
+    return &SlidingWindowLog{
+        limit:  limit,
+        window: window,
+        logs:   make(map[string][]time.Time),
+    }
+}
+
+func (s *SlidingWindowLog) Allow(key string) bool {
+    s.mutex.Lock()
+    defer s.mutex.Unlock()
+    
+    now := time.Now()
+    cutoff := now.Add(-s.window)
+    
+    // Clean old entries
+    log := s.logs[key]
+    validIdx := 0
+    for i, timestamp := range log {
+        if timestamp.After(cutoff) {
+            break
+        }
+        validIdx = i + 1
+    }
+    log = log[validIdx:]
+    
+    if len(log) < s.limit {
+        log = append(log, now)
+        s.logs[key] = log
+        return true
+    }
+    
+    return false
+}
+
+func (s *SlidingWindowLog) Remaining(key string) int {
+    s.mutex.RLock()
+    defer s.mutex.RUnlock()
+    
+    cutoff := time.Now().Add(-s.window)
+    log := s.logs[key]
+    
+    count := 0
+    for _, timestamp := range log {
+        if timestamp.After(cutoff) {
+            count++
+        }
+    }
+    
+    return s.limit - count
+}
+```
+
+### 4. GCRA (Generic Cell Rate Algorithm)
+
+Provides smooth traffic shaping with precise timing:
+
+```go
+type GCRALimiter struct {
+    interval      time.Duration  // Time between allowed requests
+    burstCapacity time.Duration  // Maximum burst allowance
+    state         map[string]time.Time
+    mutex         sync.RWMutex
+}
+
+func NewGCRALimiter(rate int, burstSize int) *GCRALimiter {
+    interval := time.Second / time.Duration(rate)
+    burstCapacity := time.Duration(burstSize) * interval
+    
+    return &GCRALimiter{
+        interval:      interval,
+        burstCapacity: burstCapacity,
+        state:         make(map[string]time.Time),
+    }
+}
+
+func (g *GCRALimiter) Allow(key string) bool {
+    g.mutex.Lock()
+    defer g.mutex.Unlock()
+    
+    now := time.Now()
+    
+    // Get theoretical arrival time
+    tat, exists := g.state[key]
+    if !exists {
+        tat = now
+    }
+    
+    // Update theoretical arrival time
+    newTAT := maxTime(tat, now).Add(g.interval)
+    
+    // Check if request is within burst capacity
+    if newTAT.Sub(now) <= g.burstCapacity {
+        g.state[key] = newTAT
+        return true
+    }
+    
+    return false
+}
+
+func maxTime(a, b time.Time) time.Time {
+    if a.After(b) {
+        return a
+    }
+    return b
+}
+```
+
+### 5. Error Rate Limiter
+
+Limits operations based on error rates rather than request counts:
+
+```go
+type ErrorRateLimiter struct {
+    maxErrors     int
+    window        time.Duration
+    errorThreshold float64
+    successCount  *ExponentialCounter
+    errorCount    *ExponentialCounter
+    mutex         sync.RWMutex
+}
+
+type ExponentialCounter struct {
+    value      float64
+    lastUpdate time.Time
+    decayRate  float64
+}
+
+func NewErrorRateLimiter(maxErrors int, window time.Duration, threshold float64) *ErrorRateLimiter {
+    decayRate := 1.0 / window.Seconds()
+    
+    return &ErrorRateLimiter{
+        maxErrors:      maxErrors,
+        window:         window,
+        errorThreshold: threshold,
+        successCount:   &ExponentialCounter{decayRate: decayRate},
+        errorCount:     &ExponentialCounter{decayRate: decayRate},
+    }
+}
+
+func (e *ErrorRateLimiter) Allow() bool {
+    e.mutex.RLock()
+    defer e.mutex.RUnlock()
+    
+    e.updateCounters()
+    
+    totalCount := e.successCount.value + e.errorCount.value
+    if totalCount == 0 {
+        return true
+    }
+    
+    errorRate := e.errorCount.value / totalCount
+    return errorRate <= e.errorThreshold && e.errorCount.value < float64(e.maxErrors)
+}
+
+func (e *ErrorRateLimiter) RecordSuccess() {
+    e.mutex.Lock()
+    defer e.mutex.Unlock()
+    
+    e.updateCounters()
+    e.successCount.increment(1.0)
+}
+
+func (e *ErrorRateLimiter) RecordError() {
+    e.mutex.Lock()
+    defer e.mutex.Unlock()
+    
+    e.updateCounters()
+    e.errorCount.increment(1.0)
+}
+
+func (e *ErrorRateLimiter) updateCounters() {
+    now := time.Now()
+    e.successCount.decay(now)
+    e.errorCount.decay(now)
+}
+
+func (ec *ExponentialCounter) decay(now time.Time) {
+    if !ec.lastUpdate.IsZero() {
+        elapsed := now.Sub(ec.lastUpdate).Seconds()
+        ec.value *= math.Exp(-ec.decayRate * elapsed)
+    }
+    ec.lastUpdate = now
+}
+
+func (ec *ExponentialCounter) increment(delta float64) {
+    ec.value += delta
+}
+```
+
+## HTTP Middleware Integration
+
+### Rate Limiting Middleware
+
+```go
+package middleware
+
+import (
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "strconv"
+    "time"
+    
+    "your-app/pkg/ratelimit"
+)
+
+type RateLimitMiddleware struct {
+    limiter ratelimit.Limiter
+    keyFunc KeyExtractor
+}
+
+type KeyExtractor func(*http.Request) string
+
+func NewRateLimitMiddleware(limiter ratelimit.Limiter, keyFunc KeyExtractor) *RateLimitMiddleware {
+    return &RateLimitMiddleware{
+        limiter: limiter,
+        keyFunc: keyFunc,
+    }
+}
+
+func (m *RateLimitMiddleware) Handler(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        key := m.keyFunc(r)
+        
+        result := m.limiter.Check(key)
+        
+        // Set rate limit headers
+        w.Header().Set("X-RateLimit-Limit", strconv.Itoa(result.Limit))
+        w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(result.Remaining))
+        w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(result.ResetTime.Unix(), 10))
+        
+        if !result.Allowed {
+            w.Header().Set("Retry-After", strconv.Itoa(int(result.RetryAfter.Seconds())))
+            
+            writeRateLimitError(w, result)
+            return
+        }
+        
+        next.ServeHTTP(w, r)
+    })
+}
+
+// Key extraction strategies
+func IPKeyExtractor(r *http.Request) string {
+    forwarded := r.Header.Get("X-Forwarded-For")
+    if forwarded != "" {
+        return strings.Split(forwarded, ",")[0]
+    }
+    return r.RemoteAddr
+}
+
+func UserKeyExtractor(r *http.Request) string {
+    userID := r.Header.Get("X-User-ID")
+    if userID == "" {
+        return IPKeyExtractor(r)
+    }
+    return fmt.Sprintf("user:%s", userID)
+}
+
+func APIKeyExtractor(r *http.Request) string {
+    apiKey := r.Header.Get("X-API-Key")
+    if apiKey == "" {
+        return IPKeyExtractor(r)
+    }
+    return fmt.Sprintf("api:%s", apiKey)
+}
+
+func writeRateLimitError(w http.ResponseWriter, result *ratelimit.Result) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusTooManyRequests)
+    
+    response := map[string]interface{}{
+        "error": map[string]interface{}{
+            "code":    "RATE_LIMIT_EXCEEDED",
+            "message": "Rate limit exceeded",
+            "details": map[string]interface{}{
+                "limit":      result.Limit,
+                "remaining":  result.Remaining,
+                "resetTime":  result.ResetTime.Unix(),
+                "retryAfter": int(result.RetryAfter.Seconds()),
+            },
+        },
+    }
+    
+    json.NewEncoder(w).Encode(response)
+}
+```
+
+## Distributed Rate Limiting
+
+### Redis-based Implementation
+
+```go
+package ratelimit
+
+import (
+    "context"
+    "fmt"
+    "strconv"
+    "time"
+    
+    "github.com/go-redis/redis/v8"
+)
+
+type RedisRateLimiter struct {
+    client *redis.Client
+    limit  int
+    window time.Duration
+}
+
+func NewRedisRateLimiter(client *redis.Client, limit int, window time.Duration) *RedisRateLimiter {
+    return &RedisRateLimiter{
+        client: client,
+        limit:  limit,
+        window: window,
+    }
+}
+
+func (r *RedisRateLimiter) Allow(ctx context.Context, key string) (bool, error) {
+    result, err := r.client.Eval(ctx, slidingWindowScript, []string{key}, 
+        r.limit, r.window.Milliseconds(), time.Now().UnixMilli()).Result()
+    
+    if err != nil {
+        return false, fmt.Errorf("redis rate limit check failed: %w", err)
+    }
+    
+    return result.(int64) == 1, nil
+}
+
+// Lua script for atomic sliding window rate limiting
+const slidingWindowScript = `
+local key = KEYS[1]
+local limit = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+
+-- Remove expired entries
+redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
+
+-- Count current requests
+local current = redis.call('ZCARD', key)
+
+if current < limit then
+    -- Add current request
+    redis.call('ZADD', key, now, now)
+    redis.call('EXPIRE', key, math.ceil(window / 1000))
+    return 1
+else
+    return 0
+end
+`
+
+// Token bucket implementation in Redis
+func (r *RedisRateLimiter) TokenBucketAllow(ctx context.Context, key string, tokens int) (bool, error) {
+    result, err := r.client.Eval(ctx, tokenBucketScript, []string{key},
+        r.limit, tokens, time.Now().Unix()).Result()
+        
+    if err != nil {
+        return false, err
+    }
+    
+    return result.(int64) == 1, nil
+}
+
+const tokenBucketScript = `
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local requested = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+
+local bucket = redis.call('HMGET', key, 'tokens', 'last_refill')
+local tokens = tonumber(bucket[1]) or capacity
+local last_refill = tonumber(bucket[2]) or now
+
+-- Refill tokens based on elapsed time
+local elapsed = now - last_refill
+local new_tokens = math.min(capacity, tokens + elapsed)
+
+if new_tokens >= requested then
+    new_tokens = new_tokens - requested
+    redis.call('HMSET', key, 'tokens', new_tokens, 'last_refill', now)
+    redis.call('EXPIRE', key, 3600)
+    return 1
+else
+    redis.call('HMSET', key, 'tokens', new_tokens, 'last_refill', now)
+    redis.call('EXPIRE', key, 3600)
+    return 0
+end
+`
+```
+
+## Advanced Patterns
+
+### Adaptive Rate Limiting
+
+Adjusts limits based on system load and error rates:
+
+```go
+type AdaptiveRateLimiter struct {
+    baseLimiter   Limiter
+    baseLimit     int
+    currentLimit  int
+    errorRate     *ExponentialCounter
+    latencyP99    *LatencyTracker
+    mutex         sync.RWMutex
+}
+
+func (a *AdaptiveRateLimiter) updateLimits() {
+    a.mutex.Lock()
+    defer a.mutex.Unlock()
+    
+    errorRate := a.errorRate.getValue()
+    latencyP99 := a.latencyP99.getP99()
+    
+    // Reduce limit if error rate is high or latency is high
+    var factor float64 = 1.0
+    
+    if errorRate > 0.05 { // 5% error rate
+        factor *= 0.8
+    }
+    
+    if latencyP99 > 500*time.Millisecond {
+        factor *= 0.9
+    }
+    
+    // Gradually increase limit if system is healthy
+    if errorRate < 0.01 && latencyP99 < 100*time.Millisecond {
+        factor = math.Min(1.2, factor*1.1)
+    }
+    
+    newLimit := int(float64(a.baseLimit) * factor)
+    a.currentLimit = max(1, min(a.baseLimit*2, newLimit))
+    
+    a.baseLimiter.UpdateLimit(a.currentLimit)
+}
+```
+
+### Hierarchical Rate Limiting
+
+Different limits for different user tiers:
+
+```go
+type HierarchicalLimiter struct {
+    limiters map[string]Limiter
+    fallback Limiter
+}
+
+func (h *HierarchicalLimiter) Allow(key string, tier string) bool {
+    if limiter, exists := h.limiters[tier]; exists {
+        return limiter.Allow(key)
+    }
+    return h.fallback.Allow(key)
+}
+
+// Usage
+limiter := &HierarchicalLimiter{
+    limiters: map[string]Limiter{
+        "premium": NewTokenBucket(1000, 100), // 1000 burst, 100/sec
+        "basic":   NewTokenBucket(100, 10),   // 100 burst, 10/sec
+        "free":    NewTokenBucket(10, 1),     // 10 burst, 1/sec
+    },
+    fallback: NewTokenBucket(5, 1), // Default limits
+}
+```
+
+## Monitoring and Observability
+
+### Metrics Collection
+
+```go
+type RateLimitMetrics struct {
+    requestsTotal     prometheus.Counter
+    requestsAllowed   prometheus.Counter
+    requestsBlocked   prometheus.Counter
+    limitUtilization  prometheus.Histogram
+}
+
+func (m *RateLimitMetrics) RecordRequest(key string, allowed bool, utilization float64) {
+    labels := prometheus.Labels{"key": key}
+    
+    m.requestsTotal.With(labels).Inc()
+    
+    if allowed {
+        m.requestsAllowed.With(labels).Inc()
+    } else {
+        m.requestsBlocked.With(labels).Inc()
+    }
+    
+    m.limitUtilization.With(labels).Observe(utilization)
+}
+```
+
+## Testing Strategies
+
+### Load Testing Rate Limiters
+
+```go
+func TestRateLimiterUnderLoad(t *testing.T) {
+    limiter := NewTokenBucket(100, 10) // 100 burst, 10/sec
+    
+    var allowed, blocked int64
+    var wg sync.WaitGroup
+    
+    // Simulate concurrent requests
+    for i := 0; i < 1000; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            
+            if limiter.Allow() {
+                atomic.AddInt64(&allowed, 1)
+            } else {
+                atomic.AddInt64(&blocked, 1)
+            }
+        }()
+    }
+    
+    wg.Wait()
+    
+    // Verify rate limiting behavior
+    assert.True(t, allowed <= 100) // Should not exceed burst capacity
+    assert.True(t, blocked > 0)    // Some requests should be blocked
+}
+```
+
+## Best Practices
+
+### Configuration Guidelines
+
+1. **Start Conservative**: Begin with lower limits and increase based on monitoring
+2. **Monitor Key Metrics**: Track allow/deny ratios, latency impact, and error rates
+3. **Provide Clear Error Messages**: Include retry-after information in responses
+4. **Use Appropriate Headers**: Follow HTTP standards for rate limit headers
+5. **Implement Graceful Degradation**: Have fallback mechanisms when rate limiting fails
+
+### Performance Considerations
+
+1. **Memory Management**: Clean up expired rate limit state regularly
+2. **Lock Contention**: Use fine-grained locking or lock-free data structures
+3. **Redis Optimization**: Use Lua scripts for atomic operations
+4. **Caching**: Cache rate limit decisions for short periods when appropriate
+
+## Consequences
+
+### Positive
+
+- **System Protection**: Prevents resource exhaustion and maintains availability
+- **Fair Resource Allocation**: Ensures equitable access across users/clients
+- **Cost Control**: Limits usage-based costs in cloud environments
+- **Quality of Service**: Maintains performance under high load
+- **Security**: Helps prevent abuse and attacks
+
+### Negative
+
+- **Legitimate Traffic Blocking**: May reject valid requests during traffic spikes
+- **Complexity**: Adds operational complexity and potential failure points
+- **Latency**: Introduces processing overhead for rate limit checks
+- **State Management**: Requires careful handling of distributed state
+- **False Positives**: Shared IP addresses or aggressive legitimate usage may be limited
+
+### Trade-offs
+
+- **Accuracy vs Performance**: More precise algorithms (sliding window) vs faster checks (fixed window)
+- **Memory vs CPU**: Storing more state vs computing limits on-demand
+- **Centralized vs Distributed**: Single point of control vs eventual consistency
+- **Static vs Dynamic**: Fixed limits vs adaptive based on system health
 
 ### Throttle
 
