@@ -1,276 +1,719 @@
-# Linear Flow with State Machine
+# ADR 013: State Machine Implementation
 
 ## Status
 
-`draft`
+**Accepted**
 
 ## Context
 
-State machines describes the transition of states and the accompanying action that follows the state change.
+State machines provide a structured approach to managing state transitions in complex business workflows. They help prevent invalid state transitions, ensure data consistency, and provide clear audit trails for business processes.
 
-Most of the time however, we just want to guard against invalid state transition.
+### Problem Statement
 
-Below is a simple implementation of a function to check if a state transition is valid.
+In distributed systems, we often encounter:
 
-```go
-package main
+- **Non-linear execution paths**: Multiple API calls required to complete workflows
+- **Concurrent state modifications**: Multiple processes attempting to modify the same entity
+- **Invalid state transitions**: Business rules violations during state changes
+- **Audit requirements**: Need to track state change history
+- **Compensation logic**: Ability to reverse or compensate failed operations
 
-import (
-	"fmt"
-)
+### Use Cases
 
-func main() {
-	fmt.Println(IsValidTransition(Pending, Success))
-	fmt.Println(IsValidTransition(Success, Failed))
-}
-
-type Status string
-
-const (
-	Ready   Status = ""
-	Pending Status = "pending"
-	Failed  Status = "failed"
-	Success Status = "success"
-)
-
-func IsValidTransition(prev, next Status) bool {
-	return (prev == Ready && next == Pending) ||
-		(prev == Ready && next == Failed) ||
-		(prev == Ready && next == Success) ||
-		(prev == Pending && next == Failed) ||
-		(prev == Pending && next == Success)
-}
-```
-
-We can then implement it this way:
-
-```golang
-package main
-
-import (
-	"errors"
-	"fmt"
-)
-
-var ErrInvalidStateTransition = errors.New("invalid state transition")
-
-func main() {
-	o := &Order{}
-	fmt.Println(o.Complete(), o.status)
-	fmt.Println(o.Complete(), o.status)
-}
-
-type Order struct {
-	status Status
-}
-
-func (o *Order) Complete() error {
-	prev, next := o.status, Success
-
-	// Guard
-	if !IsValidTransition(prev, next) {
-		return ErrInvalidStateTransition
-	}
-
-	// Do something ...
-
-	// Transition
-	o.status = next
-
-	return nil
-}
-```
-
-Above we see the implementation of a local state. 
-
-However, most of the time, we don't run a single server. The state can be distributed.
-
-One use of state machine when working in distributed system is to guard against non-linear path. 
-
-Some examples of non-linear path includes
-- the system has two sequential steps that needs to be executed in serial in order to accomplish a task. If not guarded, user can call step 2 before step 1.
-- with the same example above, user can also attempt to call step 1 after step 2 is completed. It may be intentional or not.
-
-In short, each steps needs to know about the previous and next steps to be called. 
-
-This can be made more complicated if the flow has multiple steps that are conditional, or if each steps itself has it's own flow.
-
-Do the following litmus test to check if your app has non-linesr flows
-- do you require multiple API calls to complete a flow
-
-Aside from non-linear path, state machine can also help with optimistic concurrency
-
-- do you have a class with multiple methods working on the same resource
+- Order processing workflows (pending → processing → shipped → delivered)
+- Payment processing (initiated → processing → completed/failed)
+- User onboarding flows (registration → verification → activation)
+- Document approval workflows (draft → review → approved/rejected)
 
 ## Decision
 
-For each flow, we can assign a unique identifier, e.g. `create-order-flow-${some unique id}`.
+We will implement finite state machines using:
 
-Then, before executing the flow, we can do the following
+1. **Type-safe status enums** with validation
+2. **Transition validation** with business rules
+3. **Distributed locking** for concurrent safety
+4. **Event sourcing** for audit trails
+5. **Compensation patterns** for rollbacks
 
-- lock by the identifier (e.g. using distributed lock or postgres advisory lock, or other distributed locking mechanism)
-- check the state of the step if it is allowed. This could be statuses stored in different tables. Check if prev step and next step status match.
+## Implementation
 
-We could alternatively store the whole flow state as a DAG that could server as a document too.
-
-This is not the same as a rule engine, as we do not care about the rules for the step to be valid. We only need to know if the step can be executed relative to previous steps or not.
+### Basic State Machine Pattern
 
 ```go
-orderFlow = NewOrderFlowDecider()
+package statemachine
 
-orderFlow.Lock(ctx, orderId)
-defer orderFlow.Unlock()
+import (
+    "context"
+    "errors"
+    "fmt"
+    "time"
+)
 
-if orderFlow.CanCreate() {
+// State represents a state in the state machine
+type State string
 
+// Transition represents a state transition
+type Transition struct {
+    From   State
+    To     State
+    Action string
 }
 
-func (d *OrderFlowDecider) CanCreate() {
-  // check prev step state (if no previous step, then check if the flow is allowed)
-  // check current step state
-  return false
+// StateMachine defines the state machine interface
+type StateMachine[T State] interface {
+    CurrentState() T
+    CanTransition(to T) bool
+    Transition(ctx context.Context, to T, action string) error
+    ValidTransitions() []T
+}
+
+// TransitionError represents a state transition error
+type TransitionError struct {
+    From   State
+    To     State
+    Reason string
+}
+
+func (e TransitionError) Error() string {
+    return fmt.Sprintf("invalid transition from %s to %s: %s", 
+        e.From, e.To, e.Reason)
+}
+
+// StateMachineConfig defines the state machine configuration
+type StateMachineConfig[T State] struct {
+    InitialState T
+    Transitions  map[T][]T
+    Validators   map[Transition]func(context.Context) error
+    Actions      map[Transition]func(context.Context) error
 }
 ```
 
-For most cases, you might not care about the intermediate flow, or perhaps the flow can be treated as a single step. In that case, it is sufficient to just check if the identifier exists.
+### Order State Machine Example
 
-### Data representation
+```go
+package order
 
-We can represent states as follow
+import (
+    "context"
+    "database/sql"
+    "errors"
+    "fmt"
+    "time"
+)
 
+// OrderStatus represents the order status
+type OrderStatus string
+
+const (
+    OrderStatusPending    OrderStatus = "pending"
+    OrderStatusProcessing OrderStatus = "processing"
+    OrderStatusShipped    OrderStatus = "shipped"
+    OrderStatusDelivered  OrderStatus = "delivered"
+    OrderStatusCancelled  OrderStatus = "cancelled"
+    OrderStatusRefunded   OrderStatus = "refunded"
+)
+
+// Order represents an order entity
+type Order struct {
+    ID          string      `json:"id"`
+    CustomerID  string      `json:"customer_id"`
+    Status      OrderStatus `json:"status"`
+    TotalAmount int64       `json:"total_amount"`
+    CreatedAt   time.Time   `json:"created_at"`
+    UpdatedAt   time.Time   `json:"updated_at"`
+    Version     int64       `json:"version"`
+}
+
+// OrderStateMachine manages order state transitions
+type OrderStateMachine struct {
+    order      *Order
+    repository OrderRepository
+    lockSvc    LockService
+    eventBus   EventBus
+    
+    // Valid transitions map
+    transitions map[OrderStatus][]OrderStatus
+}
+
+// NewOrderStateMachine creates a new order state machine
+func NewOrderStateMachine(
+    order *Order,
+    repo OrderRepository,
+    lockSvc LockService,
+    eventBus EventBus,
+) *OrderStateMachine {
+    return &OrderStateMachine{
+        order:      order,
+        repository: repo,
+        lockSvc:    lockSvc,
+        eventBus:   eventBus,
+        transitions: map[OrderStatus][]OrderStatus{
+            OrderStatusPending: {
+                OrderStatusProcessing,
+                OrderStatusCancelled,
+            },
+            OrderStatusProcessing: {
+                OrderStatusShipped,
+                OrderStatusCancelled,
+            },
+            OrderStatusShipped: {
+                OrderStatusDelivered,
+                OrderStatusRefunded, // If return initiated
+            },
+            OrderStatusDelivered: {
+                OrderStatusRefunded,
+            },
+            // Terminal states
+            OrderStatusCancelled: {},
+            OrderStatusRefunded:  {},
+        },
+    }
+}
+
+// CurrentState returns the current order status
+func (sm *OrderStateMachine) CurrentState() OrderStatus {
+    return sm.order.Status
+}
+
+// CanTransition checks if transition is valid
+func (sm *OrderStateMachine) CanTransition(to OrderStatus) bool {
+    validStates, exists := sm.transitions[sm.order.Status]
+    if !exists {
+        return false
+    }
+    
+    for _, state := range validStates {
+        if state == to {
+            return true
+        }
+    }
+    return false
+}
+
+// Transition performs a state transition with validation
+func (sm *OrderStateMachine) Transition(
+    ctx context.Context, 
+    to OrderStatus, 
+    reason string,
+) error {
+    // Acquire distributed lock
+    lockKey := fmt.Sprintf("order:%s", sm.order.ID)
+    unlock, err := sm.lockSvc.AcquireLock(ctx, lockKey, 30*time.Second)
+    if err != nil {
+        return fmt.Errorf("acquiring lock: %w", err)
+    }
+    defer unlock()
+    
+    // Refresh order state
+    current, err := sm.repository.GetByID(ctx, sm.order.ID)
+    if err != nil {
+        return fmt.Errorf("refreshing order state: %w", err)
+    }
+    sm.order = current
+    
+    // Validate transition
+    if !sm.CanTransition(to) {
+        return TransitionError{
+            From:   State(sm.order.Status),
+            To:     State(to),
+            Reason: "transition not allowed",
+        }
+    }
+    
+    // Validate business rules
+    if err := sm.validateTransition(ctx, to); err != nil {
+        return fmt.Errorf("validation failed: %w", err)
+    }
+    
+    // Execute pre-transition actions
+    if err := sm.executePreActions(ctx, to); err != nil {
+        return fmt.Errorf("pre-action failed: %w", err)
+    }
+    
+    // Perform the transition
+    from := sm.order.Status
+    sm.order.Status = to
+    sm.order.UpdatedAt = time.Now()
+    sm.order.Version++
+    
+    // Persist with optimistic locking
+    if err := sm.repository.UpdateWithVersion(ctx, sm.order); err != nil {
+        if errors.Is(err, ErrVersionConflict) {
+            return errors.New("concurrent modification detected")
+        }
+        return fmt.Errorf("persisting state transition: %w", err)
+    }
+    
+    // Execute post-transition actions
+    if err := sm.executePostActions(ctx, from, to); err != nil {
+        // Log error but don't fail the transition
+        // Post-actions should be idempotent and retryable
+        sm.eventBus.Publish(ctx, OrderPostActionFailed{
+            OrderID:   sm.order.ID,
+            FromState: from,
+            ToState:   to,
+            Error:     err,
+        })
+    }
+    
+    // Publish state change event
+    sm.eventBus.Publish(ctx, OrderStateChanged{
+        OrderID:   sm.order.ID,
+        FromState: from,
+        ToState:   to,
+        Reason:    reason,
+        Timestamp: time.Now(),
+    })
+    
+    return nil
+}
+
+// validateTransition validates business rules for transitions
+func (sm *OrderStateMachine) validateTransition(
+    ctx context.Context, 
+    to OrderStatus,
+) error {
+    switch to {
+    case OrderStatusProcessing:
+        return sm.validateProcessing(ctx)
+    case OrderStatusShipped:
+        return sm.validateShipping(ctx)
+    case OrderStatusCancelled:
+        return sm.validateCancellation(ctx)
+    case OrderStatusRefunded:
+        return sm.validateRefund(ctx)
+    }
+    return nil
+}
+
+func (sm *OrderStateMachine) validateProcessing(ctx context.Context) error {
+    // Check inventory availability
+    items, err := sm.repository.GetOrderItems(ctx, sm.order.ID)
+    if err != nil {
+        return fmt.Errorf("getting order items: %w", err)
+    }
+    
+    for _, item := range items {
+        available, err := sm.repository.CheckInventory(ctx, item.ProductID, item.Quantity)
+        if err != nil {
+            return fmt.Errorf("checking inventory: %w", err)
+        }
+        if !available {
+            return errors.New("insufficient inventory")
+        }
+    }
+    
+    return nil
+}
+
+func (sm *OrderStateMachine) validateShipping(ctx context.Context) error {
+    // Check payment status
+    payment, err := sm.repository.GetPayment(ctx, sm.order.ID)
+    if err != nil {
+        return fmt.Errorf("getting payment: %w", err)
+    }
+    
+    if payment.Status != "completed" {
+        return errors.New("payment not completed")
+    }
+    
+    return nil
+}
 ```
-pending, success, failed
+
+### Workflow State Machine Pattern
+
+```go
+package workflow
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "time"
+)
+
+// Step represents a workflow step
+type Step struct {
+    ID          string                 `json:"id"`
+    Name        string                 `json:"name"`
+    Status      StepStatus             `json:"status"`
+    Input       map[string]interface{} `json:"input"`
+    Output      map[string]interface{} `json:"output"`
+    Error       *string                `json:"error,omitempty"`
+    StartedAt   *time.Time             `json:"started_at,omitempty"`
+    CompletedAt *time.Time             `json:"completed_at,omitempty"`
+    RetryCount  int                    `json:"retry_count"`
+    MaxRetries  int                    `json:"max_retries"`
+}
+
+// StepStatus represents the status of a workflow step
+type StepStatus string
+
+const (
+    StepStatusNotStarted StepStatus = "not_started"
+    StepStatusPending    StepStatus = "pending"
+    StepStatusCompleted  StepStatus = "completed"
+    StepStatusFailed     StepStatus = "failed"
+    StepStatusSkipped    StepStatus = "skipped"
+)
+
+// WorkflowStatus represents the overall workflow status
+type WorkflowStatus string
+
+const (
+    WorkflowStatusNotStarted WorkflowStatus = "not_started"
+    WorkflowStatusRunning    WorkflowStatus = "running"
+    WorkflowStatusCompleted  WorkflowStatus = "completed"
+    WorkflowStatusFailed     WorkflowStatus = "failed"
+    WorkflowStatusCancelled  WorkflowStatus = "cancelled"
+)
+
+// Workflow represents a workflow instance
+type Workflow struct {
+    ID        string                 `json:"id"`
+    Name      string                 `json:"name"`
+    Status    WorkflowStatus         `json:"status"`
+    Steps     []Step                 `json:"steps"`
+    Context   map[string]interface{} `json:"context"`
+    CreatedAt time.Time              `json:"created_at"`
+    UpdatedAt time.Time              `json:"updated_at"`
+}
+
+// WorkflowEngine manages workflow execution
+type WorkflowEngine struct {
+    repository WorkflowRepository
+    stepRunner StepRunner
+    lockSvc    LockService
+}
+
+// ExecuteStep executes a specific workflow step
+func (we *WorkflowEngine) ExecuteStep(
+    ctx context.Context, 
+    workflowID, stepID string,
+) error {
+    lockKey := fmt.Sprintf("workflow:%s:step:%s", workflowID, stepID)
+    unlock, err := we.lockSvc.AcquireLock(ctx, lockKey, 5*time.Minute)
+    if err != nil {
+        return fmt.Errorf("acquiring step lock: %w", err)
+    }
+    defer unlock()
+    
+    workflow, err := we.repository.GetByID(ctx, workflowID)
+    if err != nil {
+        return fmt.Errorf("getting workflow: %w", err)
+    }
+    
+    stepIndex := we.findStepIndex(workflow, stepID)
+    if stepIndex == -1 {
+        return errors.New("step not found")
+    }
+    
+    step := &workflow.Steps[stepIndex]
+    
+    // Validate step can be executed
+    if err := we.validateStepExecution(workflow, stepIndex); err != nil {
+        return fmt.Errorf("validation failed: %w", err)
+    }
+    
+    // Execute the step
+    if err := we.executeStep(ctx, workflow, step); err != nil {
+        step.Status = StepStatusFailed
+        step.Error = &err.Error()
+        step.RetryCount++
+        
+        // Check if we should retry
+        if step.RetryCount <= step.MaxRetries {
+            // Schedule retry (implementation depends on your job queue)
+            we.scheduleRetry(ctx, workflowID, stepID, time.Minute*time.Duration(step.RetryCount))
+        }
+    } else {
+        step.Status = StepStatusCompleted
+        step.CompletedAt = &time.Time{}
+        *step.CompletedAt = time.Now()
+    }
+    
+    // Update workflow status
+    we.updateWorkflowStatus(workflow)
+    
+    // Persist changes
+    if err := we.repository.Update(ctx, workflow); err != nil {
+        return fmt.Errorf("updating workflow: %w", err)
+    }
+    
+    // Trigger next step if applicable
+    if step.Status == StepStatusCompleted {
+        if err := we.triggerNextStep(ctx, workflow, stepIndex); err != nil {
+            // Log but don't fail
+            fmt.Printf("Failed to trigger next step: %v\n", err)
+        }
+    }
+    
+    return nil
+}
+
+// validateStepExecution validates if a step can be executed
+func (we *WorkflowEngine) validateStepExecution(
+    workflow *Workflow, 
+    stepIndex int,
+) error {
+    step := &workflow.Steps[stepIndex]
+    
+    // Check if step is already completed
+    if step.Status == StepStatusCompleted {
+        return errors.New("step already completed")
+    }
+    
+    // Check if workflow is in valid state
+    if workflow.Status == WorkflowStatusCompleted ||
+       workflow.Status == WorkflowStatusCancelled ||
+       workflow.Status == WorkflowStatusFailed {
+        return errors.New("workflow not in executable state")
+    }
+    
+    // Check if previous steps are completed (sequential execution)
+    for i := 0; i < stepIndex; i++ {
+        prevStep := &workflow.Steps[i]
+        if prevStep.Status != StepStatusCompleted && 
+           prevStep.Status != StepStatusSkipped {
+            return fmt.Errorf("previous step %s not completed", prevStep.ID)
+        }
+    }
+    
+    return nil
+}
 ```
 
-For asynchronous flow, we may not be able to mark the step as success or not, so we need another boolean:
+### Bitwise Step Tracking
 
-```
-not started, pending, success, failed
-```
+```go
+package tracking
 
-For idempotent operation, it can just be
+// StepTracker uses bitwise operations for efficient step tracking
+type StepTracker struct {
+    completed uint64
+    failed    uint64
+}
 
-```
-happened, not happened
-```
+const (
+    Step1 uint64 = 1 << iota
+    Step2
+    Step3
+    Step4
+    Step5
+    // ... up to 64 steps
+)
 
-Perhaps we have a SLA for retries and/or expiration
+// MarkCompleted marks a step as completed
+func (st *StepTracker) MarkCompleted(step uint64) {
+    st.completed |= step
+    st.failed &^= step // Clear failed bit
+}
 
-```
-remaining
-limit
-retriesIn
-```
+// MarkFailed marks a step as failed
+func (st *StepTracker) MarkFailed(step uint64) {
+    st.failed |= step
+    st.completed &^= step // Clear completed bit
+}
 
-If a step failed, we may also want to record the reason and mark the step as retryable, or permanently failed:
+// IsCompleted checks if a step is completed
+func (st *StepTracker) IsCompleted(step uint64) bool {
+    return st.completed&step == step
+}
 
-```
-err
-canRetry
-terminated
-```
+// IsFailed checks if a step is failed
+func (st *StepTracker) IsFailed(step uint64) bool {
+    return st.failed&step == step
+}
 
-We can provide manual cancellation if we no longer want to run the step. The state machine can check if the flow is failed.
+// AllCompleted checks if all specified steps are completed
+func (st *StepTracker) AllCompleted(steps uint64) bool {
+    return st.completed&steps == steps
+}
 
+// AnyFailed checks if any specified steps have failed
+func (st *StepTracker) AnyFailed(steps uint64) bool {
+    return st.failed&steps != 0
+}
 
-Another possibility is reversal. After successful flow, we may still want to reverse the state.
+// CompletedCount returns the number of completed steps
+func (st *StepTracker) CompletedCount() int {
+    return popCount(st.completed)
+}
 
-This is commonly known as saga.
+// popCount counts the number of set bits
+func popCount(x uint64) int {
+    count := 0
+    for x != 0 {
+        count++
+        x &= x - 1 // Clear the lowest set bit
+    }
+    return count
+}
 
-## Locking
+// Example usage in order processing
+type OrderProcessor struct {
+    tracker StepTracker
+}
 
-State transition should only be done by a single process. For this, we need to either lock the entity in-transition or add check to prevent modifying the state of the entity in the database.
+const (
+    StepValidatePayment uint64 = 1 << iota
+    StepReserveInventory
+    StepProcessPayment
+    StepCreateShipment
+    StepSendConfirmation
+)
 
-The former is necessary if we care about idempotency of the operation (exactly omce), such as payments. The latter is acceptable when there are no harmful side-effects like making a campaign inactive as opposed to handling refund.
-
-The check can be as simple as checking the version of the entity being modified or the prev/next status or both.
-
-The pseudocode is as follow
-
-```
-func transition(from, to)
-
-begin
-select...for update nowait (where tatus = from)
-check valid transition
-// do stuff
-update ... set status = to where status = from and id = some_id
-commit
-```
-
-## Status vs steps
-
-Status transition vs steps trafnsition seems to overlap, and can be confusing when misunderstood.
-
-First, let's define state as the current condition of the system.
-
-A system's state can move from one to another, and that is usually through interactions with various components. We define the steps as an operation that cause a change od status in a system.
-
-A workflow comprised of a series of steps that is executed in a particular order. In a more complex system, the steps can be undo (saga). Each steps can have it's own internal status too (not started, pending, success and failed) and usually the sum of these states define the state of the system.
-
-Usually a timestamp is used to mark that the step is completed for strictly sync task. For async task where the step csn be waiting for the trigger, e.g message queue.
-It is more useful than a boolean because of the additional information it provides.
-
-Asynchronous task adds complexity, because now within a step, we have a series of mini steps to take before completing the steps. And there is a lot to handle
-- exactly once only
-- idempotency
-- failure handling
-- retries
-- change in state while processing (aborted, or cancelled by admin)
-
-
-### Bitwise for sequential steps
-
-We can use bitwise operators for sequential steps.
-
-The limitation is it is limited to 32 steps.
-
-But we can easily use this to check if all the steps are executed linearly.
-
-
-```
-# mark both steps as completed
-a = step1 | step2
-
-# check has step 1
-a&step1 == step1
-
-# check we have completed n steps
-a == 1<<(n+1)-1
-```
-
-
-## Status patterns
-
-This three status goes a long way:
-
-```
-pending, success, failed
-```
-
-Usually for async task, we also have the `idle` status:
-
-```
-not_started/idle, pending, success, failed
+func (op *OrderProcessor) ProcessOrder(ctx context.Context, orderID string) error {
+    allSteps := StepValidatePayment | StepReserveInventory | 
+                StepProcessPayment | StepCreateShipment | StepSendConfirmation
+    
+    // Validate payment
+    if err := op.validatePayment(ctx, orderID); err != nil {
+        op.tracker.MarkFailed(StepValidatePayment)
+        return err
+    }
+    op.tracker.MarkCompleted(StepValidatePayment)
+    
+    // Reserve inventory
+    if err := op.reserveInventory(ctx, orderID); err != nil {
+        op.tracker.MarkFailed(StepReserveInventory)
+        return err
+    }
+    op.tracker.MarkCompleted(StepReserveInventory)
+    
+    // Continue with other steps...
+    
+    // Check if all steps completed
+    if op.tracker.AllCompleted(allSteps) {
+        // Order processing complete
+        return nil
+    }
+    
+    return errors.New("order processing incomplete")
+}
 ```
 
-Any other status can be categorized as `unknown`. Sometimes the status can also be placed under `limbo`, if we choose not to handle them.
+## Testing
 
-For a workflow, we can have a series of steps with the statuses above. The status of the workflow depends on the individual statuses. There is also some logic we must follow
-- a step can only be started after the previous step completed
-- each step must be completed in sequence
-- a step can fail, or not failed
-- if a step failed, it can either retry, or choose to rollback all previous steps before, only if they can be rollback
-- steps can be sync or async. Async steps usually wait listens to external events to move the state
-- the overall workflow can be paused and resumed. This happens at workflow level, not steps
+```go
+func TestOrderStateMachine_Transition(t *testing.T) {
+    tests := []struct {
+        name          string
+        currentStatus OrderStatus
+        targetStatus  OrderStatus
+        shouldSucceed bool
+        expectedError string
+    }{
+        {
+            name:          "valid transition pending to processing",
+            currentStatus: OrderStatusPending,
+            targetStatus:  OrderStatusProcessing,
+            shouldSucceed: true,
+        },
+        {
+            name:          "invalid transition pending to delivered",
+            currentStatus: OrderStatusPending,
+            targetStatus:  OrderStatusDelivered,
+            shouldSucceed: false,
+            expectedError: "transition not allowed",
+        },
+        {
+            name:          "invalid transition from terminal state",
+            currentStatus: OrderStatusCancelled,
+            targetStatus:  OrderStatusProcessing,
+            shouldSucceed: false,
+            expectedError: "transition not allowed",
+        },
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            order := &Order{
+                ID:     "test-order",
+                Status: tt.currentStatus,
+            }
+            
+            mockRepo := &MockOrderRepository{}
+            mockLock := &MockLockService{}
+            mockEvent := &MockEventBus{}
+            
+            sm := NewOrderStateMachine(order, mockRepo, mockLock, mockEvent)
+            
+            err := sm.Transition(context.Background(), tt.targetStatus, "test transition")
+            
+            if tt.shouldSucceed {
+                assert.NoError(t, err)
+                assert.Equal(t, tt.targetStatus, order.Status)
+            } else {
+                assert.Error(t, err)
+                assert.Contains(t, err.Error(), tt.expectedError)
+            }
+        })
+    }
+}
 
-With the rules above in mind, we can design:
-- forward only transaction (all steps must succeed), or can be compensated
-- sync/async step
+func TestStepTracker_BitOperations(t *testing.T) {
+    tracker := StepTracker{}
+    
+    // Mark steps as completed
+    tracker.MarkCompleted(Step1 | Step3)
+    
+    assert.True(t, tracker.IsCompleted(Step1))
+    assert.False(t, tracker.IsCompleted(Step2))
+    assert.True(t, tracker.IsCompleted(Step3))
+    
+    // Check completion count
+    assert.Equal(t, 2, tracker.CompletedCount())
+    
+    // Mark step as failed
+    tracker.MarkFailed(Step2)
+    assert.True(t, tracker.IsFailed(Step2))
+    assert.False(t, tracker.IsCompleted(Step2))
+}
+```
+
+## Best Practices
+
+### Do
+
+- ✅ Use type-safe enums for states
+- ✅ Implement distributed locking for concurrent safety
+- ✅ Validate transitions before execution
+- ✅ Use optimistic locking for data consistency
+- ✅ Publish events for state changes
+- ✅ Implement compensation for rollbacks
+- ✅ Design idempotent state transitions
+
+### Don't
+
+- ❌ Allow direct state modification without validation
+- ❌ Skip locking in concurrent environments
+- ❌ Create circular state dependencies
+- ❌ Ignore error handling in transitions
+- ❌ Make state transitions non-idempotent
 
 ## Consequences
 
-- a standardised approach on dealing with idempotency and state transitions
-- guarding against non-linesr flow
+### Positive
+
+- **Data Consistency**: Prevents invalid state transitions
+- **Audit Trail**: Complete history of state changes
+- **Concurrent Safety**: Handles multiple processes safely
+- **Business Rules**: Enforces domain constraints
+- **Debuggability**: Clear state transition logs
+
+### Negative
+
+- **Complexity**: Additional code for state management
+- **Performance**: Locking overhead for each transition
+- **Storage**: Additional tables for audit trails
+
+## References
+
+- [Finite State Machine](https://en.wikipedia.org/wiki/Finite-state_machine)
+- [Saga Pattern](https://microservices.io/patterns/data/saga.html)
+- [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
+- [Optimistic Locking](https://en.wikipedia.org/wiki/Optimistic_concurrency_control)
 
 

@@ -1,53 +1,571 @@
-# DataLoader
+# DataLoader Pattern for Efficient Batching and Caching
 
 ## Status 
 
-`draft`
+`accepted`
 
 ## Context
 
-DataLoader is a pattern for batching keys to fetch results to solve the N+1 query issue. The results will also be cached, so querying with the same key does not make additional queries to the database.
+DataLoader is a crucial pattern for solving the N+1 query problem in applications, particularly in GraphQL APIs where concurrent resolvers may request the same data multiple times. The pattern batches individual load requests into bulk operations and provides transparent caching to eliminate duplicate requests within a single request cycle.
 
-DataLoader is more commonly used for GraphQL where there can be concurrent resolvers attempting to fetch the resources by ids.
+Key challenges in DataLoader implementation:
+- **N+1 Problem**: Multiple sequential queries instead of one bulk query
+- **Cache coherence**: Ensuring cached results match the requested keys
+- **Error handling**: Handling partial failures in batch operations
+- **Memory management**: Preventing memory leaks from cached data
+- **Concurrency**: Thread-safe operations across goroutines
 
-DataLoader returns a thunk that could be resolved into a result or an error. When multiple queries are issued to the dataloader, the keys will first be batched in-memory.
+## Decision
 
-When the number of keys hits the desired threshold, or after every tick, dataloader executes the query and returns the result.
+**Implement a robust DataLoader pattern with the following characteristics:**
 
-## Decisions
+### 1. Core DataLoader Implementation
 
-There are a few common design challenges and incorrect usage patterns for dataloader.
+```go
+package dataloader
 
-### Keys must equal result
+import (
+    "context"
+    "errors"
+    "fmt"
+    "sync"
+    "time"
+)
 
-In DataLoader, a _batch function_ must be provided to fetch the values for the uniquely batched keys. If there are no keys, we can skip the query.
+// BatchFunc loads data for the given keys. Must return values in the same order as keys.
+// If a key has no value, return nil for that position.
+type BatchFunc[K comparable, V any] func(ctx context.Context, keys []K) ([]V, []error)
 
-For the execution to be successful, every key must resolve to a value or an error.
+// KeyFunc extracts the key from a value for cache mapping.
+type KeyFunc[K comparable, V any] func(V) K
 
-The results needs to be returned in the same order as the key in order to identify the key/value pair. The key/value pair is cached for future query.
+// Result represents a cached result that may contain a value or error.
+type Result[V any] struct {
+    Value V
+    Error error
+}
 
-However, in reality, the following could happen:
+// DataLoader batches and caches data loading operations.
+type DataLoader[K comparable, V any] struct {
+    mu          sync.RWMutex
+    batchFunc   BatchFunc[K, V]
+    keyFunc     KeyFunc[K, V]
+    cache       map[K]*Result[V]
+    
+    // Batching configuration
+    maxBatchSize int
+    batchTimeout time.Duration
+    
+    // Batching state
+    batch       []K
+    batchMu     sync.Mutex
+    promises    map[K][]*promise[V]
+    ticker      *time.Ticker
+    done        chan struct{}
+    started     bool
+}
 
-- the number of keys does not match the number of values
-- some keys does not have a value (perhaps it was deleted)
-- there are duplicate keys but only one value is returned (`IN (...)` query actually removes the duplicates)
-- the query failed due to internal error
-- some values may be filtered due to access control
+type promise[V any] struct {
+    ch chan *Result[V]
+}
 
-To fix the issue with the ordering, without needing the user to map the values manually, a _key mapper function_ could be provided that does the opposite of a batch function.
+func (p *promise[V]) await() (V, error) {
+    result := <-p.ch
+    return result.Value, result.Error
+}
 
-It takes a value, and returns the key. This holds another assumption, that the key can be derived from value, which is true for most cases 
+// Config for DataLoader initialization.
+type Config struct {
+    MaxBatchSize int
+    BatchTimeout time.Duration
+}
 
+func New[K comparable, V any](
+    batchFunc BatchFunc[K, V],
+    keyFunc KeyFunc[K, V],
+    config Config,
+) *DataLoader[K, V] {
+    if config.MaxBatchSize <= 0 {
+        config.MaxBatchSize = 100
+    }
+    if config.BatchTimeout <= 0 {
+        config.BatchTimeout = 10 * time.Millisecond
+    }
+    
+    return &DataLoader[K, V]{
+        batchFunc:    batchFunc,
+        keyFunc:      keyFunc,
+        cache:        make(map[K]*Result[V]),
+        maxBatchSize: config.MaxBatchSize,
+        batchTimeout: config.BatchTimeout,
+        promises:     make(map[K][]*promise[V]),
+        done:         make(chan struct{}),
+    }
+}
 
-### Duplicate keys
+// Load fetches a value for the given key, batching with other concurrent loads.
+func (dl *DataLoader[K, V]) Load(ctx context.Context, key K) (V, error) {
+    // Check cache first
+    dl.mu.RLock()
+    if result, exists := dl.cache[key]; exists {
+        dl.mu.RUnlock()
+        return result.Value, result.Error
+    }
+    dl.mu.RUnlock()
+    
+    // Start batch worker if not already started
+    dl.startWorker()
+    
+    // Create promise for this request
+    p := &promise[V]{ch: make(chan *Result[V], 1)}
+    
+    dl.batchMu.Lock()
+    dl.batch = append(dl.batch, key)
+    dl.promises[key] = append(dl.promises[key], p)
+    
+    // Trigger immediate execution if batch is full
+    if len(dl.batch) >= dl.maxBatchSize {
+        dl.executeBatch(ctx)
+    }
+    dl.batchMu.Unlock()
+    
+    return p.await()
+}
 
-Duplicate keys can solved by only sending the unique keys to the batch function
+// LoadMany fetches values for multiple keys efficiently.
+func (dl *DataLoader[K, V]) LoadMany(ctx context.Context, keys []K) ([]V, []error) {
+    results := make([]V, len(keys))
+    errors := make([]error, len(keys))
+    
+    // Use WaitGroup for concurrent loading
+    var wg sync.WaitGroup
+    for i, key := range keys {
+        wg.Add(1)
+        go func(idx int, k K) {
+            defer wg.Done()
+            value, err := dl.Load(ctx, k)
+            results[idx] = value
+            errors[idx] = err
+        }(i, key)
+    }
+    
+    wg.Wait()
+    return results, errors
+}
 
+// Prime manually adds a value to the cache.
+func (dl *DataLoader[K, V]) Prime(key K, value V, err error) {
+    dl.mu.Lock()
+    defer dl.mu.Unlock()
+    
+    dl.cache[key] = &Result[V]{
+        Value: value,
+        Error: err,
+    }
+}
 
+// Clear removes all cached values.
+func (dl *DataLoader[K, V]) Clear() {
+    dl.mu.Lock()
+    defer dl.mu.Unlock()
+    
+    dl.cache = make(map[K]*Result[V])
+}
 
-### No result
+// ClearKey removes a specific key from cache.
+func (dl *DataLoader[K, V]) ClearKey(key K) {
+    dl.mu.Lock()
+    defer dl.mu.Unlock()
+    
+    delete(dl.cache, key)
+}
 
-When there are no result, we can just reject the key with an error.
+// Flush immediately executes any pending batch.
+func (dl *DataLoader[K, V]) Flush(ctx context.Context) {
+    dl.batchMu.Lock()
+    if len(dl.batch) > 0 {
+        dl.executeBatch(ctx)
+    }
+    dl.batchMu.Unlock()
+}
+
+// Close stops the DataLoader and cleans up resources.
+func (dl *DataLoader[K, V]) Close() {
+    dl.batchMu.Lock()
+    if dl.started {
+        close(dl.done)
+        dl.ticker.Stop()
+        dl.started = false
+    }
+    dl.batchMu.Unlock()
+}
+
+func (dl *DataLoader[K, V]) startWorker() {
+    dl.batchMu.Lock()
+    defer dl.batchMu.Unlock()
+    
+    if dl.started {
+        return
+    }
+    
+    dl.started = true
+    dl.ticker = time.NewTicker(dl.batchTimeout)
+    
+    go func() {
+        defer dl.ticker.Stop()
+        
+        for {
+            select {
+            case <-dl.ticker.C:
+                dl.batchMu.Lock()
+                if len(dl.batch) > 0 {
+                    dl.executeBatch(context.Background())
+                }
+                dl.batchMu.Unlock()
+                
+            case <-dl.done:
+                return
+            }
+        }
+    }()
+}
+
+func (dl *DataLoader[K, V]) executeBatch(ctx context.Context) {
+    if len(dl.batch) == 0 {
+        return
+    }
+    
+    // Get unique keys to avoid duplicate database queries
+    keySet := make(map[K]struct{})
+    var uniqueKeys []K
+    for _, key := range dl.batch {
+        if _, exists := keySet[key]; !exists {
+            keySet[key] = struct{}{}
+            uniqueKeys = append(uniqueKeys, key)
+        }
+    }
+    
+    currentBatch := dl.batch
+    currentPromises := dl.promises
+    
+    // Reset batch state
+    dl.batch = nil
+    dl.promises = make(map[K][]*promise[V])
+    
+    // Execute batch function
+    values, errors := dl.batchFunc(ctx, uniqueKeys)
+    
+    // Create results map
+    results := make(map[K]*Result[V])
+    
+    if len(values) != len(uniqueKeys) || len(errors) != len(uniqueKeys) {
+        // Handle length mismatch - create error for all keys
+        err := errors.New("batch function returned mismatched lengths")
+        for _, key := range uniqueKeys {
+            results[key] = &Result[V]{Error: err}
+        }
+    } else {
+        // Map results using key function
+        for i, key := range uniqueKeys {
+            result := &Result[V]{
+                Value: values[i],
+                Error: errors[i],
+            }
+            results[key] = result
+        }
+    }
+    
+    // Cache and deliver results
+    dl.mu.Lock()
+    for key, result := range results {
+        // Cache the result
+        dl.cache[key] = result
+        
+        // Deliver to all waiting promises
+        if promises, exists := currentPromises[key]; exists {
+            for _, promise := range promises {
+                promise.ch <- result
+            }
+        }
+    }
+    dl.mu.Unlock()
+}
+```
+
+### 2. Practical Usage Examples
+
+#### User DataLoader for GraphQL
+
+```go
+// Domain model
+type User struct {
+    ID       string    `json:"id"`
+    Name     string    `json:"name"`
+    Email    string    `json:"email"`
+    Created  time.Time `json:"created"`
+}
+
+// Repository interface
+type UserRepository interface {
+    GetUsersByIDs(ctx context.Context, ids []string) ([]*User, error)
+}
+
+// Create DataLoader for users
+func NewUserDataLoader(repo UserRepository) *dataloader.DataLoader[string, *User] {
+    batchFunc := func(ctx context.Context, ids []string) ([]*User, []error) {
+        users, err := repo.GetUsersByIDs(ctx, ids)
+        if err != nil {
+            // Return error for all keys
+            errors := make([]error, len(ids))
+            for i := range errors {
+                errors[i] = err
+            }
+            return make([]*User, len(ids)), errors
+        }
+        
+        // Create map for O(1) lookup
+        userMap := make(map[string]*User)
+        for _, user := range users {
+            userMap[user.ID] = user
+        }
+        
+        // Return results in same order as keys
+        results := make([]*User, len(ids))
+        errors := make([]error, len(ids))
+        
+        for i, id := range ids {
+            if user, exists := userMap[id]; exists {
+                results[i] = user
+            } else {
+                errors[i] = fmt.Errorf("user not found: %s", id)
+            }
+        }
+        
+        return results, errors
+    }
+    
+    keyFunc := func(user *User) string {
+        return user.ID
+    }
+    
+    return dataloader.New(batchFunc, keyFunc, dataloader.Config{
+        MaxBatchSize: 100,
+        BatchTimeout: 10 * time.Millisecond,
+    })
+}
+
+// GraphQL resolver example
+type Resolver struct {
+    userLoader *dataloader.DataLoader[string, *User]
+}
+
+func (r *Resolver) Posts(ctx context.Context) ([]*Post, error) {
+    posts, err := r.postRepo.GetPosts(ctx)
+    if err != nil {
+        return nil, err
+    }
+    
+    // This would normally cause N+1 queries
+    for _, post := range posts {
+        // Load user for each post - DataLoader will batch these
+        user, err := r.userLoader.Load(ctx, post.AuthorID)
+        if err != nil {
+            return nil, err
+        }
+        post.Author = user
+    }
+    
+    return posts, nil
+}
+```
+
+#### Redis Cache DataLoader
+
+```go
+// Cache DataLoader for expensive computations
+func NewComputationDataLoader() *dataloader.DataLoader[string, *Result] {
+    batchFunc := func(ctx context.Context, keys []string) ([]*Result, []error) {
+        results := make([]*Result, len(keys))
+        errors := make([]error, len(keys))
+        
+        for i, key := range keys {
+            // Simulate expensive computation
+            result, err := performExpensiveComputation(ctx, key)
+            results[i] = result
+            errors[i] = err
+        }
+        
+        return results, errors
+    }
+    
+    keyFunc := func(result *Result) string {
+        return result.Key
+    }
+    
+    return dataloader.New(batchFunc, keyFunc, dataloader.Config{
+        MaxBatchSize: 50,
+        BatchTimeout: 5 * time.Millisecond,
+    })
+}
+```
+
+### 3. Testing DataLoader
+
+```go
+func TestDataLoader(t *testing.T) {
+    // Mock repository
+    repo := &MockUserRepository{
+        users: map[string]*User{
+            "1": {ID: "1", Name: "Alice"},
+            "2": {ID: "2", Name: "Bob"},
+        },
+    }
+    
+    loader := NewUserDataLoader(repo)
+    defer loader.Close()
+    
+    t.Run("single load", func(t *testing.T) {
+        user, err := loader.Load(context.Background(), "1")
+        require.NoError(t, err)
+        assert.Equal(t, "Alice", user.Name)
+        
+        // Verify repository was called
+        assert.Equal(t, 1, repo.callCount)
+    })
+    
+    t.Run("batch loading", func(t *testing.T) {
+        repo.callCount = 0 // Reset
+        
+        // Concurrent loads should be batched
+        var wg sync.WaitGroup
+        results := make([]*User, 3)
+        errors := make([]error, 3)
+        
+        for i, id := range []string{"1", "2", "1"} {
+            wg.Add(1)
+            go func(idx int, userID string) {
+                defer wg.Done()
+                user, err := loader.Load(context.Background(), userID)
+                results[idx] = user
+                errors[idx] = err
+            }(i, id)
+        }
+        
+        wg.Wait()
+        
+        // All should succeed
+        for _, err := range errors {
+            require.NoError(t, err)
+        }
+        
+        // Results should be correct
+        assert.Equal(t, "Alice", results[0].Name)
+        assert.Equal(t, "Bob", results[1].Name)
+        assert.Equal(t, "Alice", results[2].Name) // Cached
+        
+        // Repository should be called only once
+        assert.Equal(t, 1, repo.callCount)
+    })
+    
+    t.Run("cache behavior", func(t *testing.T) {
+        // Prime cache
+        loader.Prime("3", &User{ID: "3", Name: "Charlie"}, nil)
+        
+        user, err := loader.Load(context.Background(), "3")
+        require.NoError(t, err)
+        assert.Equal(t, "Charlie", user.Name)
+        
+        // Should not call repository
+        assert.Equal(t, 1, repo.callCount) // From previous test
+    })
+}
+
+type MockUserRepository struct {
+    users     map[string]*User
+    callCount int
+}
+
+func (m *MockUserRepository) GetUsersByIDs(ctx context.Context, ids []string) ([]*User, error) {
+    m.callCount++
+    
+    var users []*User
+    for _, id := range ids {
+        if user, exists := m.users[id]; exists {
+            users = append(users, user)
+        }
+    }
+    
+    return users, nil
+}
+```
+
+### 4. Advanced Patterns
+
+#### TTL Cache Integration
+
+```go
+type TTLDataLoader[K comparable, V any] struct {
+    *DataLoader[K, V]
+    ttl   time.Duration
+    times map[K]time.Time
+    mu    sync.RWMutex
+}
+
+func (dl *TTLDataLoader[K, V]) Load(ctx context.Context, key K) (V, error) {
+    dl.mu.RLock()
+    if expiry, exists := dl.times[key]; exists {
+        if time.Now().After(expiry) {
+            dl.mu.RUnlock()
+            dl.ClearKey(key)
+            dl.mu.Lock()
+            delete(dl.times, key)
+            dl.mu.Unlock()
+        } else {
+            dl.mu.RUnlock()
+        }
+    } else {
+        dl.mu.RUnlock()
+    }
+    
+    value, err := dl.DataLoader.Load(ctx, key)
+    if err == nil {
+        dl.mu.Lock()
+        dl.times[key] = time.Now().Add(dl.ttl)
+        dl.mu.Unlock()
+    }
+    
+    return value, err
+}
+```
+
+## Consequences
+
+**Benefits:**
+- **Performance**: Eliminates N+1 queries through intelligent batching
+- **Simplicity**: Transparent caching without manual cache management
+- **Concurrency**: Thread-safe operations across multiple goroutines
+- **Memory efficiency**: Bounded cache size with TTL support
+- **Debugging**: Clear visibility into batch operations and cache hits
+
+**Trade-offs:**
+- **Complexity**: Additional abstraction layer to understand and maintain
+- **Memory usage**: Cached data consumes memory until cleared
+- **Latency**: Small delay due to batching timeout
+- **Debugging**: Harder to trace individual data requests
+
+**Best Practices:**
+- Use per-request DataLoader instances to prevent data leakage
+- Implement proper key extraction functions for cache coherence  
+- Set reasonable batch sizes and timeouts based on use case
+- Monitor cache hit rates and batch effectiveness
+- Clear cache appropriately to prevent memory leaks
+- Use TTL for long-lived DataLoader instances
+
+## References
+
+- [Facebook DataLoader](https://github.com/graphql/dataloader)
+- [GraphQL Best Practices](https://graphql.org/learn/best-practices/)
+- [Go Concurrency Patterns](https://blog.golang.org/concurrency-patterns)
 
 The user is responsible to handle the error.
 
